@@ -41,7 +41,7 @@ API sin interfaz para practicar inventario y pedidos con .NET 10, PostgreSQL, Re
    dotnet run --project src/StockFlow.Api
    ```
 
-5. Abrir Swagger en `http://localhost:5080/swagger` o importar `postman/StockFlow.postman_collection.json` y el entorno `postman/StockFlow Local.postman_environment.json` en Postman. Ejecuta Register o Login y luego Get current identity. Los endpoints de estado y cotización siguen disponibles de forma anónima; `/api/v1/auth/me` requiere un bearer token.
+5. Abrir Swagger en `http://localhost:5080/swagger` o importar `postman/StockFlow.postman_collection.json` y el entorno `postman/StockFlow Local.postman_environment.json` en Postman. Ejecuta Register o Login para obtener un bearer token; úsalo para consultar la identidad y operar el catálogo. Los endpoints de estado y cotización siguen disponibles de forma anónima.
 
 Los valores de `appsettings.Development.json` y `compose.yaml` son credenciales locales de ejemplo. Para otros entornos, usa secretos de usuario o variables de entorno y no subas credenciales reales al repositorio.
 
@@ -65,6 +65,20 @@ La factoría de diseño usa `ConnectionStrings__Postgres` si está definida; en 
 - Los tokens expiran a los 20 minutos. El rol está guardado en cada membresía (`Owner`, `Admin`, `Member`), por lo que pertenece a una organización y no a la cuenta en general.
 - Las contraseñas requieren 12–128 caracteres, mayúscula, minúscula y número. Registro limita a tres requests por minuto por IP y login a cinco; no se bloquean cuentas por contraseña incorrecta para evitar que terceros provoquen ese bloqueo.
 - El emisor JWT local existe para aprender. Un sistema real debe delegar autenticación/emisión de access tokens en un proveedor OAuth 2.0 / OpenID Connect, servir HTTPS y configurar el API para validar sus tokens. Detrás de un proxy, limita login por una dirección reenviada solo si el proxy está explícitamente confiado.
+
+## Catálogo de productos
+
+Todos los endpoints del catálogo requieren `Authorization: Bearer <accessToken>`. La organización se toma del JWT validado; no se envía un `organizationId` en el body.
+
+| Método | Endpoint | Comportamiento |
+| --- | --- | --- |
+| `POST` | `/api/v1/products` | Crea un producto; responde `201` y normaliza el SKU a mayúsculas. |
+| `GET` | `/api/v1/products/{productId}` | Obtiene un producto de la organización actual; un ID de otra organización responde `404`. |
+| `GET` | `/api/v1/products` | Busca por `search`, pagina con `page` y `pageSize`, y permite `sortBy`, `sortDirection` e `includeInactive`. |
+| `PUT` | `/api/v1/products/{productId}` | Actualiza SKU, nombre, descripción, precio, moneda y estado activo. |
+| `DELETE` | `/api/v1/products/{productId}` | Desactiva el producto (`is_active = false`); no lo elimina físicamente. |
+
+La búsqueda acepta `page` entre 1 y 1.000.000, `pageSize` entre 1 y 100, `sortBy` entre `name`, `sku`, `unitPrice` y `createdAtUtc`, y `sortDirection` `asc` o `desc`. Por defecto excluye productos inactivos; usa `includeInactive=true` para incluirlos. El SKU es único por organización. Importa la colección y el entorno Postman para tener ejemplos de creación, búsqueda, actualización y desactivación; Swagger describe los contratos y errores esperados. La lectura del catálogo usa PostgreSQL en esta etapa; Redis se integrará en la Etapa 6.
 
 ## Arquitectura y plan
 

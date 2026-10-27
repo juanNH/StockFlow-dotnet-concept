@@ -41,14 +41,20 @@ El registro crea usuario, organización y membresía inicial dentro de una trans
 
 La API valida firma HMAC-SHA256, issuer, audience, expiración y claims de identidad/tenant del JWT. El token de acceso local dura 20 minutos. `ICurrentTenant` pertenece a Application y su implementación en API lee `sub`, `org_id` y `org_role` de los claims ya validados. Los controladores futuros deben tomar la organización desde este contexto. No aceptar un tenant del cuerpo o de un header como autoridad.
 
-En esta etapa `/api/v1/auth/me` demuestra el tenant autenticado. Las entidades tenant-owned y sus filtros/consultas se agregan en Etapa 4; al añadir SQL manual, cada consulta debe incluir explícitamente `organization_id`. Los roles se validan al emitir el token; una membresía revocada deja de reflejarse cuando vence el token, por lo que los tokens locales son cortos.
+`GET /api/v1/auth/me` demuestra el tenant autenticado. En Etapa 4 se agregó `Product` como entidad tenant-owned. Los casos de uso reciben la organización desde `ICurrentTenant`; el cliente no puede elegirla mediante el body. El `DbContext` añade un filtro global de EF Core para productos y el repositorio añade predicados explícitos por `organization_id` en lecturas y búsquedas. Una consulta SQL manual futura debe incluir explícitamente `organization_id`, ya que no hereda el filtro de EF Core. Los roles se validan al emitir el token; una membresía revocada deja de reflejarse cuando vence el token, por lo que los tokens locales son cortos.
+
+## Catálogo de productos
+
+`products` tiene una FK a `organizations`, SKU en mayúsculas validado por regla de dominio y restricción SQL, y moneda con formato de tres letras ASCII. La aplicación exige un precio positivo con hasta dos decimales. PostgreSQL usa `numeric(20,4)` junto con `ck_products_unit_price_scale` (`unit_price = trunc(unit_price, 2)`) para rechazar valores con escala adicional incluso en inserciones SQL manuales, sin redondearlos silenciosamente. Un índice único `(organization_id, sku)` permite que distintas organizaciones reutilicen un SKU y evita duplicados dentro de la misma organización. Los valores de producto se leen y escriben con EF Core; las migraciones se generan y aplican explícitamente, no durante el arranque.
+
+`POST /api/v1/products` crea; `GET /api/v1/products/{productId}` obtiene por ID; `GET /api/v1/products` busca por coincidencia parcial en nombre o SKU; `PUT /api/v1/products/{productId}` actualiza; `DELETE /api/v1/products/{productId}` desactiva lógicamente (`is_active = false`). Todos requieren bearer token. La búsqueda pagina con `page` entre 1 y 1.000.000 y `pageSize` entre 1 y 100, ordena por `name`, `sku`, `unitPrice` o `createdAtUtc`, y excluye inactivos salvo que `includeInactive=true`. La caché del catálogo pertenece a la Etapa 6 y todavía no interviene en este flujo.
 
 ## Datos y consistencia
 
 - PostgreSQL es la fuente de verdad para productos, pedidos e inventario.
 - Usa EF Core para lecturas y escrituras comunes. Usa la factoría Npgsql para practicar SQL explícito cuando una escritura condicional o una transacción aporte valor.
 - Una reserva de stock debe actualizar el saldo, insertar el movimiento y pedido, y guardar el mensaje outbox en una sola transacción. Verifica las filas afectadas en los decrementos condicionales.
-- Cachea lecturas del catálogo y cotizaciones con TTL explícito. Nunca uses stock cacheado para aprobar pedidos. Invalida la caché del catálogo después del commit.
+- Cachea lecturas del catálogo (Etapa 6) y cotizaciones con TTL explícito. Nunca uses stock cacheado para aprobar pedidos. Invalida la caché del catálogo después del commit.
 - Mantén llamadas HTTP fuera de transacciones SQL. Si el flujo necesita una entrega externa confiable, guarda el evento outbox y procésalo en segundo plano.
 - Cambia el esquema con migraciones. Aplícalas explícitamente durante la configuración o el despliegue; no al iniciar la API.
 

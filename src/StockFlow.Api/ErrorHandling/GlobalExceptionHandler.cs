@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using StockFlow.Application.CurrencyRates;
 using StockFlow.Application.Identity;
+using StockFlow.Application.Products;
+using StockFlow.Domain.Products;
 
 namespace StockFlow.Api.ErrorHandling;
 
@@ -27,6 +29,18 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
                 StatusCodes.Status400BadRequest,
                 "Registration validation failed",
                 "The registration details do not meet the account policy."),
+            ProductRuleViolationException => (
+                StatusCodes.Status400BadRequest,
+                "Invalid product",
+                exception.Message),
+            ProductNotFoundException => (
+                StatusCodes.Status404NotFound,
+                "Product not found",
+                "The product was not found in the current organization."),
+            ProductSkuConflictException => (
+                StatusCodes.Status409Conflict,
+                "Product SKU conflict",
+                "A product with this SKU already exists in the current organization."),
             CurrencyPairNotSupportedException => (
                 StatusCodes.Status400BadRequest,
                 "Unsupported currency pair",

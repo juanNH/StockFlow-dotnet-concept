@@ -157,6 +157,78 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("StockFlow.Domain.Products.Product", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sku");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("Id")
+                        .HasName("pk_products");
+
+                    b.HasIndex("OrganizationId", "Name")
+                        .HasDatabaseName("ix_products_organization_name");
+
+                    b.HasIndex("OrganizationId", "Sku")
+                        .IsUnique()
+                        .HasDatabaseName("ux_products_organization_sku");
+
+                    b.ToTable("products", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_products_currency", "currency ~ '^[A-Z]{3}$'");
+
+                            t.HasCheckConstraint("ck_products_sku", "sku ~ '^[A-Z0-9]+(-[A-Z0-9]+)*$'");
+
+                            t.HasCheckConstraint("ck_products_unit_price", "unit_price > 0");
+
+                            t.HasCheckConstraint("ck_products_unit_price_scale", "unit_price = trunc(unit_price, 2)");
+                        });
+                });
+
             modelBuilder.Entity("StockFlow.Infrastructure.Identity.StockFlowUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -261,6 +333,15 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
                     b.HasOne("StockFlow.Infrastructure.Identity.StockFlowUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StockFlow.Domain.Products.Product", b =>
+                {
+                    b.HasOne("StockFlow.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

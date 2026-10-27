@@ -6,6 +6,7 @@ using Npgsql;
 using StackExchange.Redis;
 using StockFlow.Application.Abstractions;
 using StockFlow.Application.Identity;
+using StockFlow.Application.Products;
 using StockFlow.Infrastructure.Caching;
 using StockFlow.Infrastructure.Integrations;
 using StockFlow.Infrastructure.Identity;
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddDbContext<StockFlowDbContext>((serviceProvider, options) =>
             options.UseNpgsql(serviceProvider.GetRequiredService<NpgsqlDataSource>()));
         services.AddScoped<IDbConnectionFactory, NpgsqlDbConnectionFactory>();
+        services.AddScoped<IProductRepository, EfProductRepository>();
 
         services.AddOptions<JwtOptions>()
             .Bind(configuration.GetSection(JwtOptions.SectionName))

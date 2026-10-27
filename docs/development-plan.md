@@ -30,11 +30,15 @@
 - **Validado:** build sin advertencias; migración generada y aplicada; registro, login, acceso anónimo/autenticado, tenant del `/me`, errores de credenciales y Swagger verificados con la API local.
 - **Criterio cumplido:** el token solo se emite si la membresía para la organización existe; `/me` devuelve exclusivamente el contexto incluido por el servidor en el JWT validado.
 
-## Etapa 4 — Catálogo de productos
+## Etapa 4 — Catálogo de productos ✅
 
-- Agrega reglas de dominio de productos/SKU, mappings y casos de uso CRUD/búsqueda.
-- Incorpora paginación, ordenamiento, validación de requests y errores estables.
-- **Criterio:** los endpoints están filtrados por tenant, documentados en Swagger y representados en Postman.
+- **Implementado:** agregado el catálogo tenant-owned de productos con SKU normalizado, reglas de nombre, descripción, moneda y precio; la base protege SKU, formato de moneda y escala de precio y aplica unicidad por `(organization_id, sku)`.
+- **Implementado:** agregado `POST /api/v1/products`, `GET /api/v1/products/{productId}`, `GET /api/v1/products`, `PUT /api/v1/products/{productId}` y `DELETE /api/v1/products/{productId}`. DELETE es una baja lógica (`is_active = false`).
+- **Implementado:** la búsqueda pagina (page 1–1.000.000, pageSize 1–100), busca por nombre/SKU, excluye inactivos por defecto y admite orden por nombre, SKU, precio o fecha de creación con dirección ascendente/descendente.
+- **Implementado:** todos los endpoints requieren autenticación y obtienen la organización de `ICurrentTenant`, derivado de los claims validados del JWT. EF Core aplica un filtro global de organización y el repositorio conserva predicados explícitos por organización.
+- **Implementado:** requests, respuestas, errores esperados, Swagger y ejemplos de Postman actualizados. Las migraciones de EF Core se aplican explícitamente; la API no las ejecuta al iniciar.
+- **Validado:** build sin advertencias; migraciones de catálogo y precisión de precio generadas y aplicadas. Smoke HTTP verificó registro/login, alta, actualización, búsqueda, paginación, SKU único por tenant, errores 400/404/409, baja lógica, bearer y Swagger. Inserción SQL manual con tres decimales rechazada por `ck_products_unit_price_scale`.
+- **Criterio cumplido:** los endpoints están aislados por tenant, documentados en Swagger y representados en Postman; las reglas de precio también se aplican a escrituras SQL manuales.
 
 ## Etapa 5 — Inventario, ledger y SQL manual
 

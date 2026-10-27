@@ -142,6 +142,149 @@
           }
         }
       ]
+    },
+    {
+      "name": "Products",
+      "description": "Authenticated product catalog operations. Run Identity > Register organization or Login first to populate accessToken.",
+      "item": [
+        {
+          "name": "Create product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SKU-1001\",\n  \"name\": \"Wireless Barcode Scanner\",\n  \"description\": \"Bluetooth barcode scanner for warehouse operations.\",\n  \"unitPrice\": 79.90,\n  \"currency\": \"USD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/products",
+            "description": "Creates a product for the authenticated organization. A successful Product response includes id; the script saves it as productId in the active environment. Change the SKU before creating another product."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const product = pm.response.json();",
+                  "  pm.environment.set('productId', product.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get product by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/products/{{productId}}",
+            "description": "Gets one product in the authenticated organization's catalog. Run Create product first to populate productId."
+          }
+        },
+        {
+          "name": "Search products (pagination and sorting)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/products?page=1&pageSize=20&search=&sortBy=name&sortDirection=asc&includeInactive=false",
+            "description": "Demonstrates paged product search sorted by name ascending. The response contains items, page, pageSize, totalCount, and totalPages. Replace the empty search query to filter by a term."
+          }
+        },
+        {
+          "name": "Update product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SKU-1001\",\n  \"name\": \"Wireless Barcode Scanner\",\n  \"description\": \"Bluetooth barcode scanner for warehouse operations.\",\n  \"unitPrice\": 74.90,\n  \"currency\": \"USD\",\n  \"isActive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/products/{{productId}}",
+            "description": "Updates the selected product. The request includes isActive in addition to the create fields. Run Create product first to populate productId."
+          }
+        },
+        {
+          "name": "Deactivate product",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/products/{{productId}}",
+            "description": "Deactivates the selected product and returns HTTP 204 No Content. Run Create product first to populate productId."
+          }
+        }
+      ]
     }
   ],
   "variable": [
