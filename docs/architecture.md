@@ -49,11 +49,19 @@ La API valida firma HMAC-SHA256, issuer, audience, expiración y claims de ident
 
 `POST /api/v1/products` crea; `GET /api/v1/products/{productId}` obtiene por ID; `GET /api/v1/products` busca por coincidencia parcial en nombre o SKU; `PUT /api/v1/products/{productId}` actualiza; `DELETE /api/v1/products/{productId}` desactiva lógicamente (`is_active = false`). Todos requieren bearer token. La búsqueda pagina con `page` entre 1 y 1.000.000 y `pageSize` entre 1 y 100, ordena por `name`, `sku`, `unitPrice` o `createdAtUtc`, y excluye inactivos salvo que `includeInactive=true`. La caché del catálogo pertenece a la Etapa 6 y todavía no interviene en este flujo.
 
+## Inventario, depósitos y ledger
+
+Los depósitos y saldos son tenant-owned. Las claves foráneas compuestas atan la organización, el depósito y el producto para impedir relaciones entre organizaciones distintas incluso si una escritura evita la API. El contexto de organización proviene de los claims validados del JWT; cada consulta y escritura usa el tenant actual.
+
+`POST /api/v1/warehouses` crea un depósito; `GET /api/v1/warehouses` lista los depósitos visibles para el tenant y `GET /api/v1/warehouses/{warehouseId}` obtiene uno por ID. `POST /api/v1/warehouses/{warehouseId}/inventory/{productId}/adjustments` recibe un delta firmado y un motivo. `GET /api/v1/warehouses/{warehouseId}/inventory` consulta los saldos y `GET /api/v1/warehouses/{warehouseId}/inventory/movements` consulta movimientos, con filtros `productId`, `page` y `pageSize`.
+
+El ajuste ejecuta SQL parametrizado con Npgsql dentro de una transacción explícita. Actualiza el saldo con una condición que rechaza cualquier decremento que lo deje negativo y revisa las filas afectadas; inserta el movimiento en la misma transacción. Si la inserción falla, el saldo también se revierte. Los movimientos son append-only: un trigger de PostgreSQL rechaza operaciones manuales `UPDATE`, `DELETE` y `TRUNCATE`. Los reintentos no son idempotentes todavía y pueden aplicar dos veces un ajuste; esa protección se implementará en la Etapa 7. Redis no participa en lecturas ni escrituras de inventario en esta etapa.
+
 ## Datos y consistencia
 
 - PostgreSQL es la fuente de verdad para productos, pedidos e inventario.
 - Usa EF Core para lecturas y escrituras comunes. Usa la factoría Npgsql para practicar SQL explícito cuando una escritura condicional o una transacción aporte valor.
-- Una reserva de stock debe actualizar el saldo, insertar el movimiento y pedido, y guardar el mensaje outbox en una sola transacción. Verifica las filas afectadas en los decrementos condicionales.
+- Una futura reserva de stock debe actualizar el saldo, insertar el movimiento y pedido, y guardar el mensaje outbox en una sola transacción. Verifica las filas afectadas en los decrementos condicionales.
 - Cachea lecturas del catálogo (Etapa 6) y cotizaciones con TTL explícito. Nunca uses stock cacheado para aprobar pedidos. Invalida la caché del catálogo después del commit.
 - Mantén llamadas HTTP fuera de transacciones SQL. Si el flujo necesita una entrega externa confiable, guarda el evento outbox y procésalo en segundo plano.
 - Cambia el esquema con migraciones. Aplícalas explícitamente durante la configuración o el despliegue; no al iniciar la API.

@@ -20,6 +20,8 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
             });
         builder.HasKey(product => product.Id)
             .HasName("pk_products");
+        builder.HasAlternateKey(product => new { product.OrganizationId, product.Id })
+            .HasName("ak_products_organization_id_id");
 
         builder.Property(product => product.Id)
             .HasColumnName("id")

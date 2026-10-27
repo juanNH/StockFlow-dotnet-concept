@@ -40,12 +40,14 @@
 - **Validado:** build sin advertencias; migraciones de catálogo y precisión de precio generadas y aplicadas. Smoke HTTP verificó registro/login, alta, actualización, búsqueda, paginación, SKU único por tenant, errores 400/404/409, baja lógica, bearer y Swagger. Inserción SQL manual con tres decimales rechazada por `ck_products_unit_price_scale`.
 - **Criterio cumplido:** los endpoints están aislados por tenant, documentados en Swagger y representados en Postman; las reglas de precio también se aplican a escrituras SQL manuales.
 
-## Etapa 5 — Inventario, ledger y SQL manual
+## Etapa 5 — Inventario, ledger y SQL manual ✅
 
-- Agrega depósitos, saldos y un ledger append-only de movimientos de stock.
-- Practica SQL parametrizado con Npgsql para ajustes y decrementos condicionales.
-- Confirma el cambio de saldo y el movimiento en una transacción SQL; verifica filas afectadas y rollback.
-- **Criterio:** el stock no puede quedar negativo y cada ajuste confirmado tiene su movimiento.
+- **Implementado:** depósitos, saldos de inventario y ledger append-only; se agregaron `POST/GET /api/v1/warehouses`, consulta por ID, ajustes firmados por producto, consulta de saldo y consulta paginada de movimientos.
+- **Implementado:** ajustes de inventario con SQL parametrizado de Npgsql y transacción explícita. El saldo se actualiza condicionalmente para impedir valores negativos; el movimiento se inserta en la misma transacción. Triggers de PostgreSQL impiden `UPDATE`, `DELETE` y `TRUNCATE` sobre los movimientos.
+- **Implementado:** tenant derivado del JWT, con claves foráneas compuestas que exigen que organización, depósito y producto pertenezcan al mismo tenant.
+- **Implementado:** el endpoint de movimientos filtra opcionalmente por producto y pagina mediante `page` y `pageSize`. La API aplica migraciones solo mediante comandos explícitos.
+- **Validado:** build limpio; ajuste `+10` seguido de `-3`; saldo insuficiente responde `409` sin insertar movimiento; un tenant ajeno recibe `404`; dos decrementos concurrentes de `-5` terminan con un `201` y un `409`; dos incrementos concurrentes sobre un saldo inicial vacío terminan con dos respuestas `201` y saldo `10`; un fallo forzado al insertar el ledger revierte el saldo; el trigger rechaza `UPDATE`, `DELETE` y `TRUNCATE` manuales del ledger.
+- **Criterio cumplido:** el saldo no queda negativo y cada ajuste confirmado guarda su movimiento en la misma transacción. Los reintentos aún pueden duplicar un ajuste; la idempotencia pertenece a la Etapa 7. No se agrega caché en esta etapa.
 
 ## Etapa 6 — Redis para lecturas del catálogo
 

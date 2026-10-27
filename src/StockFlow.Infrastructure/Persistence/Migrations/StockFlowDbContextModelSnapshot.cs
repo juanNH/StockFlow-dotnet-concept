@@ -86,6 +86,97 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("StockFlow.Domain.Inventory.InventoryBalance", b =>
+                {
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<long>("QuantityOnHand")
+                        .HasColumnType("bigint")
+                        .HasColumnName("quantity_on_hand");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at_utc");
+
+                    b.HasKey("OrganizationId", "WarehouseId", "ProductId")
+                        .HasName("pk_inventory_balances");
+
+                    b.HasIndex("OrganizationId", "ProductId");
+
+                    b.ToTable("inventory_balances", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_inventory_balances_quantity", "quantity_on_hand >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("StockFlow.Domain.Inventory.StockMovement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<Guid>("PerformedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("performed_by_user_id");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<long>("QuantityAfter")
+                        .HasColumnType("bigint")
+                        .HasColumnName("quantity_after");
+
+                    b.Property<long>("QuantityDelta")
+                        .HasColumnType("bigint")
+                        .HasColumnName("quantity_delta");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("character varying(250)")
+                        .HasColumnName("reason");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_stock_movements");
+
+                    b.HasIndex("PerformedByUserId");
+
+                    b.HasIndex("OrganizationId", "ProductId");
+
+                    b.HasIndex("OrganizationId", "WarehouseId", "ProductId", "CreatedAtUtc")
+                        .HasDatabaseName("ix_stock_movements_org_warehouse_product_created");
+
+                    b.ToTable("stock_movements", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_stock_movements_delta", "quantity_delta <> 0");
+
+                            t.HasCheckConstraint("ck_stock_movements_quantity_after", "quantity_after >= 0");
+                        });
+                });
+
             modelBuilder.Entity("StockFlow.Domain.Organizations.Organization", b =>
                 {
                     b.Property<Guid>("Id")
@@ -210,6 +301,9 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_products");
 
+                    b.HasAlternateKey("OrganizationId", "Id")
+                        .HasName("ak_products_organization_id_id");
+
                     b.HasIndex("OrganizationId", "Name")
                         .HasDatabaseName("ix_products_organization_name");
 
@@ -226,6 +320,48 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_products_unit_price", "unit_price > 0");
 
                             t.HasCheckConstraint("ck_products_unit_price_scale", "unit_price = trunc(unit_price, 2)");
+                        });
+                });
+
+            modelBuilder.Entity("StockFlow.Domain.Warehouses.Warehouse", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_warehouses");
+
+                    b.HasAlternateKey("OrganizationId", "Id")
+                        .HasName("ak_warehouses_organization_id_id");
+
+                    b.HasIndex("OrganizationId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ux_warehouses_organization_code");
+
+                    b.ToTable("warehouses", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_warehouses_code", "code ~ '^[A-Z0-9]+(-[A-Z0-9]+)*$'");
                         });
                 });
 
@@ -322,6 +458,46 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("StockFlow.Domain.Inventory.InventoryBalance", b =>
+                {
+                    b.HasOne("StockFlow.Domain.Products.Product", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "ProductId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StockFlow.Domain.Warehouses.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "WarehouseId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StockFlow.Domain.Inventory.StockMovement", b =>
+                {
+                    b.HasOne("StockFlow.Infrastructure.Identity.StockFlowUser", null)
+                        .WithMany()
+                        .HasForeignKey("PerformedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StockFlow.Domain.Products.Product", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "ProductId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StockFlow.Domain.Warehouses.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "WarehouseId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("StockFlow.Domain.Organizations.OrganizationMembership", b =>
                 {
                     b.HasOne("StockFlow.Domain.Organizations.Organization", null)
@@ -338,6 +514,15 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("StockFlow.Domain.Products.Product", b =>
+                {
+                    b.HasOne("StockFlow.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StockFlow.Domain.Warehouses.Warehouse", b =>
                 {
                     b.HasOne("StockFlow.Domain.Organizations.Organization", null)
                         .WithMany()

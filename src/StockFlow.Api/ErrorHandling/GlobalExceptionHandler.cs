@@ -2,8 +2,12 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using StockFlow.Application.CurrencyRates;
 using StockFlow.Application.Identity;
+using StockFlow.Application.Inventory;
 using StockFlow.Application.Products;
+using StockFlow.Application.Warehouses;
 using StockFlow.Domain.Products;
+using StockFlow.Domain.Inventory;
+using StockFlow.Domain.Warehouses;
 
 namespace StockFlow.Api.ErrorHandling;
 
@@ -41,6 +45,30 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
                 StatusCodes.Status409Conflict,
                 "Product SKU conflict",
                 "A product with this SKU already exists in the current organization."),
+            WarehouseRuleViolationException => (
+                StatusCodes.Status400BadRequest,
+                "Invalid warehouse",
+                exception.Message),
+            StockAdjustmentRuleViolationException => (
+                StatusCodes.Status400BadRequest,
+                "Invalid stock adjustment",
+                exception.Message),
+            WarehouseNotFoundException => (
+                StatusCodes.Status404NotFound,
+                "Warehouse not found",
+                "The warehouse was not found in the current organization."),
+            WarehouseCodeConflictException => (
+                StatusCodes.Status409Conflict,
+                "Warehouse code conflict",
+                "A warehouse with this code already exists in the current organization."),
+            InsufficientStockException => (
+                StatusCodes.Status409Conflict,
+                "Insufficient stock",
+                "The adjustment would result in a negative stock balance."),
+            StockQuantityOutOfRangeException => (
+                StatusCodes.Status409Conflict,
+                "Stock quantity out of range",
+                "The resulting stock quantity is outside the supported range."),
             CurrencyPairNotSupportedException => (
                 StatusCodes.Status400BadRequest,
                 "Unsupported currency pair",

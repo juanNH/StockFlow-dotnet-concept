@@ -285,6 +285,229 @@
           }
         }
       ]
+    },
+    {
+      "name": "Warehouses and inventory",
+      "description": "Authenticated warehouse and stock operations. Run Identity > Register organization or Login, then Products > Create product to populate productId. Create a warehouse before adjusting inventory.",
+      "item": [
+        {
+          "name": "Create warehouse",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"WH-01\",\n  \"name\": \"Main Warehouse\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/warehouses",
+            "description": "Creates a warehouse for the authenticated organization. A successful response saves its id as warehouseId. Use a new code when creating another warehouse in the same organization."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const warehouse = pm.response.json();",
+                  "  pm.environment.set('warehouseId', warehouse.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get warehouse by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/warehouses/{{warehouseId}}",
+            "description": "Gets one warehouse in the authenticated organization. Run Create warehouse first to populate warehouseId."
+          }
+        },
+        {
+          "name": "List warehouses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/warehouses",
+            "description": "Lists only warehouses in the authenticated organization."
+          }
+        },
+        {
+          "name": "Adjust stock (+10)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantityDelta\": 10,\n  \"reason\": \"Initial stock receipt\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/warehouses/{{warehouseId}}/inventory/{{productId}}/adjustments",
+            "description": "Adds ten units and appends a stock movement in one SQL transaction. A successful response saves the movement id as movementId. Run Create warehouse and Products > Create product first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const movement = pm.response.json();",
+                  "  pm.environment.set('movementId', movement.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get inventory balances",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/warehouses/{{warehouseId}}/inventory",
+            "description": "Lists current balances for the selected warehouse and the authenticated organization."
+          }
+        },
+        {
+          "name": "Get stock movement history",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/warehouses/{{warehouseId}}/inventory/movements?productId={{productId}}&page=1&pageSize=20",
+            "description": "Returns the append-only movement history for the selected product, newest first."
+          }
+        },
+        {
+          "name": "Adjust stock (-3)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantityDelta\": -3,\n  \"reason\": \"Cycle count correction\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/warehouses/{{warehouseId}}/inventory/{{productId}}/adjustments",
+            "description": "Subtracts three units conditionally. If this would make stock negative, the API returns HTTP 409 and neither the balance nor ledger changes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const movement = pm.response.json();",
+                  "  pm.environment.set('movementId', movement.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [

@@ -41,7 +41,7 @@ API sin interfaz para practicar inventario y pedidos con .NET 10, PostgreSQL, Re
    dotnet run --project src/StockFlow.Api
    ```
 
-5. Abrir Swagger en `http://localhost:5080/swagger` o importar `postman/StockFlow.postman_collection.json` y el entorno `postman/StockFlow Local.postman_environment.json` en Postman. Ejecuta Register o Login para obtener un bearer token; úsalo para consultar la identidad y operar el catálogo. Los endpoints de estado y cotización siguen disponibles de forma anónima.
+5. Abrir Swagger en `http://localhost:5080/swagger` o importar `postman/StockFlow.postman_collection.json` y el entorno `postman/StockFlow Local.postman_environment.json` en Postman. Ejecuta Register o Login para obtener un bearer token; úsalo para consultar la identidad, operar el catálogo y probar depósitos e inventario. Los endpoints de estado y cotización siguen disponibles de forma anónima.
 
 Los valores de `appsettings.Development.json` y `compose.yaml` son credenciales locales de ejemplo. Para otros entornos, usa secretos de usuario o variables de entorno y no subas credenciales reales al repositorio.
 
@@ -79,6 +79,23 @@ Todos los endpoints del catálogo requieren `Authorization: Bearer <accessToken>
 | `DELETE` | `/api/v1/products/{productId}` | Desactiva el producto (`is_active = false`); no lo elimina físicamente. |
 
 La búsqueda acepta `page` entre 1 y 1.000.000, `pageSize` entre 1 y 100, `sortBy` entre `name`, `sku`, `unitPrice` y `createdAtUtc`, y `sortDirection` `asc` o `desc`. Por defecto excluye productos inactivos; usa `includeInactive=true` para incluirlos. El SKU es único por organización. Importa la colección y el entorno Postman para tener ejemplos de creación, búsqueda, actualización y desactivación; Swagger describe los contratos y errores esperados. La lectura del catálogo usa PostgreSQL en esta etapa; Redis se integrará en la Etapa 6.
+
+## Depósitos e inventario
+
+Todos los endpoints de depósitos e inventario requieren bearer token. La organización se deriva del JWT; no se envía un `organizationId` en la request.
+
+| Método | Endpoint | Comportamiento |
+| --- | --- | --- |
+| `POST` | `/api/v1/warehouses` | Crea un depósito para la organización actual. |
+| `GET` | `/api/v1/warehouses` | Lista los depósitos de la organización actual. |
+| `GET` | `/api/v1/warehouses/{warehouseId}` | Obtiene un depósito de la organización actual. |
+| `POST` | `/api/v1/warehouses/{warehouseId}/inventory/{productId}/adjustments` | Aplica un delta firmado y un motivo; un ajuste confirmado responde `201`. |
+| `GET` | `/api/v1/warehouses/{warehouseId}/inventory` | Consulta el saldo del depósito. |
+| `GET` | `/api/v1/warehouses/{warehouseId}/inventory/movements` | Consulta el ledger; admite `productId`, `page` y `pageSize`. |
+
+Cada ajuste usa SQL parametrizado dentro de una transacción PostgreSQL: actualiza el saldo de forma condicional para que no sea negativo e inserta el movimiento en la misma transacción. Si falla la inserción, el saldo se revierte. Un saldo insuficiente responde `409` sin crear un movimiento; los IDs de otra organización responden `404`. Las FK compuestas validan que depósito y producto pertenezcan a la misma organización. El ledger es append-only y un trigger rechaza operaciones manuales `UPDATE`, `DELETE` y `TRUNCATE`.
+
+El ajuste todavía no es idempotente: repetir la misma request puede volver a cambiar el saldo y crear otro movimiento. Las claves de idempotencia se incorporan en la Etapa 7. El inventario no usa Redis ni toma decisiones a partir de datos cacheados.
 
 ## Arquitectura y plan
 

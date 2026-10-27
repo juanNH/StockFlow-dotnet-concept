@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using StockFlow.Application.Abstractions;
 using StockFlow.Infrastructure.Identity;
 using StockFlow.Domain.Organizations;
+using StockFlow.Domain.Inventory;
 using StockFlow.Domain.Products;
+using StockFlow.Domain.Warehouses;
 
 namespace StockFlow.Infrastructure.Persistence;
 
@@ -20,6 +22,12 @@ public sealed class StockFlowDbContext(
 
     public DbSet<Product> Products => Set<Product>();
 
+    public DbSet<Warehouse> Warehouses => Set<Warehouse>();
+
+    public DbSet<InventoryBalance> InventoryBalances => Set<InventoryBalance>();
+
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -30,5 +38,11 @@ public sealed class StockFlowDbContext(
             .HasDatabaseName("EmailIndex");
         modelBuilder.Entity<Product>()
             .HasQueryFilter(product => product.OrganizationId == CurrentOrganizationId);
+        modelBuilder.Entity<Warehouse>()
+            .HasQueryFilter(warehouse => warehouse.OrganizationId == CurrentOrganizationId);
+        modelBuilder.Entity<InventoryBalance>()
+            .HasQueryFilter(balance => balance.OrganizationId == CurrentOrganizationId);
+        modelBuilder.Entity<StockMovement>()
+            .HasQueryFilter(movement => movement.OrganizationId == CurrentOrganizationId);
     }
 }
