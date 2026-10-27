@@ -1,0 +1,42 @@
+{
+  "info": {
+    "name": "StockFlow API",
+    "description": "Requests for the API-only StockFlow backend exercise.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Liveness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health/live"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Currency rates",
+      "item": [
+        {
+          "name": "Get USD to EUR rate",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/currency-rates/USD/EUR"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5080",
+      "type": "string"
+    }
+  ]
+}
