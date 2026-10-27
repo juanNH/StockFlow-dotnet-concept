@@ -39,6 +39,109 @@
           }
         }
       ]
+    },
+    {
+      "name": "Identity",
+      "description": "Register an organization and authenticate its owner. Successful register/login responses save accessToken, organizationId, and organizationSlug in the active Postman environment.",
+      "item": [
+        {
+          "name": "Register organization",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organizationName\": \"Acme Supplies\",\n  \"organizationSlug\": \"acme-supplies\",\n  \"email\": \"owner@acme.test\",\n  \"password\": \"ChangeMe123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "description": "Creates an organization and its initial owner. A successful response contains accessToken, tokenType, expiresAtUtc, organizationId, organizationName, organizationSlug, and role. The script saves accessToken, organizationId, and organizationSlug to the active environment. Use a new organizationSlug and email when registering again."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.environment.set('accessToken', data.accessToken);",
+                  "  pm.environment.set('organizationId', data.organizationId);",
+                  "  pm.environment.set('organizationSlug', data.organizationSlug);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner@acme.test\",\n  \"password\": \"ChangeMe123!\",\n  \"organizationSlug\": \"{{organizationSlug}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Authenticates an organization member. A successful response contains accessToken, tokenType, expiresAtUtc, organizationId, organizationName, organizationSlug, and role. The script refreshes accessToken, organizationId, and organizationSlug in the active environment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json();",
+                  "  pm.environment.set('accessToken', data.accessToken);",
+                  "  pm.environment.set('organizationId', data.organizationId);",
+                  "  pm.environment.set('organizationSlug', data.organizationSlug);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get current identity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/auth/me",
+            "description": "Returns userId, email, organizationId, organizationName, organizationSlug, and role for the authenticated user. Run Register organization or Login first to populate accessToken."
+          }
+        }
+      ]
     }
   ],
   "variable": [

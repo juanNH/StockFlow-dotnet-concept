@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using StockFlow.Application.CurrencyRates;
+using StockFlow.Application.Identity;
 
 namespace StockFlow.Api.ErrorHandling;
 
@@ -18,6 +19,14 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
 
         var (statusCode, title, detail) = exception switch
         {
+            IdentityConflictException => (
+                StatusCodes.Status409Conflict,
+                "Identity conflict",
+                "The email address or organization slug is already registered."),
+            IdentityValidationException => (
+                StatusCodes.Status400BadRequest,
+                "Registration validation failed",
+                "The registration details do not meet the account policy."),
             CurrencyPairNotSupportedException => (
                 StatusCodes.Status400BadRequest,
                 "Unsupported currency pair",
@@ -36,7 +45,14 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
                 "See the server logs for diagnostic details.")
         };
 
-        logger.LogError(exception, "Request failed with status code {StatusCode}.", statusCode);
+        if (statusCode >= StatusCodes.Status500InternalServerError)
+        {
+            logger.LogError(exception, "Request failed with status code {StatusCode}.", statusCode);
+        }
+        else
+        {
+            logger.LogInformation("Request failed with status code {StatusCode}: {Title}.", statusCode, title);
+        }
 
         httpContext.Response.StatusCode = statusCode;
         await Results.Problem(

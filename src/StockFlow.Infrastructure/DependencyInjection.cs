@@ -1,11 +1,14 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using StackExchange.Redis;
 using StockFlow.Application.Abstractions;
+using StockFlow.Application.Identity;
 using StockFlow.Infrastructure.Caching;
 using StockFlow.Infrastructure.Integrations;
+using StockFlow.Infrastructure.Identity;
 using StockFlow.Infrastructure.Persistence;
 
 namespace StockFlow.Infrastructure;
@@ -28,6 +31,25 @@ public static class DependencyInjection
             options.UseNpgsql(serviceProvider.GetRequiredService<NpgsqlDataSource>()));
         services.AddScoped<IDbConnectionFactory, NpgsqlDbConnectionFactory>();
 
+        services.AddOptions<JwtOptions>()
+            .Bind(configuration.GetSection(JwtOptions.SectionName))
+            .Validate(options => IsValidJwtOptions(options),
+                "Authentication:Jwt requires a valid issuer, audience, 32-byte signing key, and lifetime of 5-60 minutes.")
+            .ValidateOnStart();
+        services.AddIdentityCore<StockFlowUser>(options =>
+        {
+            options.User.RequireUniqueEmail = true;
+            options.Password.RequiredLength = IdentityPasswordPolicy.MinimumLength;
+            options.Password.RequireDigit = true;
+            options.Password.RequireLowercase = true;
+            options.Password.RequireUppercase = true;
+            options.Password.RequireNonAlphanumeric = false;
+            options.Lockout.AllowedForNewUsers = false;
+        }).AddEntityFrameworkStores<StockFlowDbContext>();
+        services.AddSingleton(TimeProvider.System);
+        services.AddScoped<JwtAccessTokenIssuer>();
+        services.AddScoped<IOrganizationIdentityService, OrganizationIdentityService>();
+
         services.AddSingleton<IConnectionMultiplexer>(_ =>
         {
             var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
@@ -45,5 +67,18 @@ public static class DependencyInjection
         });
 
         return services;
+    }
+
+    private static bool IsValidJwtOptions(JwtOptions options)
+    {
+        try
+        {
+            options.Validate();
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 }

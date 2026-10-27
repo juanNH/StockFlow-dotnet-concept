@@ -1,6 +1,6 @@
 # Plan de desarrollo de StockFlow
 
-**Cantidad total: 11 etapas.** Avanza en orden y mantén cada etapa lo bastante pequeña como para revisarla. El SDK .NET 10.0.403 está instalado localmente en `.dotnet/`; el SDK global de la máquina sigue en .NET 8. Completa cada etapa cuando sus entregables y criterios estén satisfechos. Actualiza la colección Postman a medida que agregues endpoints.
+**Cantidad total: 11 etapas.** Avanza en orden y mantén cada etapa lo bastante pequeña como para revisarla. Se requiere el SDK .NET 10 según `global.json`. Completa cada etapa cuando sus entregables y criterios estén satisfechos. Actualiza la colección Postman a medida que agregues endpoints.
 
 ## Etapa 1 — Esqueleto y entorno local ✅
 
@@ -21,10 +21,14 @@
 
 ## Etapa 3 — Identidad y separación por organización
 
-- Define organizaciones, usuarios, membresías y roles/permisos para el ejercicio SaaS.
-- Agrega autenticación y contexto de tenant en el límite de la API.
-- Aplica el tenant en Application/Infrastructure; no confíes solo en un tenant enviado en el cuerpo del request.
-- **Criterio:** cada usuario autenticado solo accede a datos de su organización. Agrega variables de entorno Postman para tokens y organizaciones.
+- **Implementado:** usuario ASP.NET Core Identity, membresía por organización con roles `Owner`, `Admin` y `Member`, restricción única `(user_id, organization_id)` y FK a usuario/organización.
+- **Implementado:** registro transaccional `POST /api/v1/auth/register`, login por email/contraseña/slug `POST /api/v1/auth/login` y consulta autenticada `GET /api/v1/auth/me`.
+- **Implementado:** JWT firmado y de vida corta con `sub`, `org_id`, `org_role`, issuer, audience, expiración y `jti`; validación de issuer/firma/audience/lifetime y formato de claims de tenant en API, y bearer en Swagger.
+- **Implementado:** política de contraseña alineada entre API e Identity; verificación ficticia para emails inexistentes, límite de cinco logins y tres registros por minuto por IP; no se bloquea la cuenta a partir de intentos fallidos.
+- **Implementado:** `ICurrentTenant` en Application y adaptador HTTP en API; nunca se toma el tenant de body/header para autorizar. Clave local configurada con User Secrets.
+- **Implementado:** requests de Postman y entorno con `accessToken`, `organizationId` y `organizationSlug`.
+- **Validado:** build sin advertencias; migración generada y aplicada; registro, login, acceso anónimo/autenticado, tenant del `/me`, errores de credenciales y Swagger verificados con la API local.
+- **Criterio cumplido:** el token solo se emite si la membresía para la organización existe; `/me` devuelve exclusivamente el contexto incluido por el servidor en el JWT validado.
 
 ## Etapa 4 — Catálogo de productos
 

@@ -33,6 +33,16 @@ El código inicial incluye un flujo vertical pequeño de cotización: Controller
 
 La primera entidad persistida es `Organization`, como raíz de tenant para las siguientes etapas. Su tabla `organizations` tiene `id` UUID, `name` (máximo 120), `slug` (máximo 80, único) y `created_at_utc` en `timestamp with time zone`. Domain normaliza/valida el nombre, el slug y el instante UTC; Infrastructure mapea nombres explícitos de tabla/columnas e índice único.
 
+## Identidad y tenant actual
+
+`StockFlowUser` vive en Infrastructure y extiende ASP.NET Core Identity. Las credenciales y el hash se guardan en `AspNetUsers`; Domain no conoce Identity ni almacena contraseñas. Domain contiene `OrganizationMembership` y `OrganizationRole`, con una fila única por usuario y organización. La membresía enlaza el usuario de Identity con `Organization` y persiste su rol (`Owner`, `Admin` o `Member`).
+
+El registro crea usuario, organización y membresía inicial dentro de una transacción. Identity valida y genera el hash de contraseña. El login valida email y contraseña, y después busca la membresía para el slug solicitado; el cliente no puede elegir un rol ni obtener un token para una organización de la que no es miembro. Una verificación ficticia de contraseña mantiene trabajo criptográfico en credenciales inexistentes. Login permite cinco requests por minuto por IP; registro permite tres. No se bloquea una cuenta por contraseña incorrecta, porque una tercera persona podría usarlo para impedirle el acceso.
+
+La API valida firma HMAC-SHA256, issuer, audience, expiración y claims de identidad/tenant del JWT. El token de acceso local dura 20 minutos. `ICurrentTenant` pertenece a Application y su implementación en API lee `sub`, `org_id` y `org_role` de los claims ya validados. Los controladores futuros deben tomar la organización desde este contexto. No aceptar un tenant del cuerpo o de un header como autoridad.
+
+En esta etapa `/api/v1/auth/me` demuestra el tenant autenticado. Las entidades tenant-owned y sus filtros/consultas se agregan en Etapa 4; al añadir SQL manual, cada consulta debe incluir explícitamente `organization_id`. Los roles se validan al emitir el token; una membresía revocada deja de reflejarse cuando vence el token, por lo que los tokens locales son cortos.
+
 ## Datos y consistencia
 
 - PostgreSQL es la fuente de verdad para productos, pedidos e inventario.
@@ -57,6 +67,8 @@ La caché de la cotización puede fallar sin bloquear la respuesta: operaciones 
 - Framework: `net10.0`; `global.json` fija la línea del SDK.
 - Las versiones de paquetes se administran centralmente en `Directory.Packages.props`.
 - Swagger UI se habilita en Development. Postman es la colección portátil de requests.
+- La clave JWT local se guarda con User Secrets (`Authentication:Jwt:SigningKey`) y no se incluye en `appsettings.Development.json`. No uses este emisor local como proveedor de identidad de producción.
+- La API local sirve HTTP para el ejercicio en Postman. Al desplegar, termina TLS en la API o en un proxy confiable y configura encabezados reenviados solo desde esos proxies antes de usar la IP del cliente para limitar login.
 - PostgreSQL y Redis locales se ejecutan con `compose.yaml`.
 - Las credenciales de contenedor son solo para desarrollo local. Usa variables de entorno o user secrets fuera de ese entorno.
 
