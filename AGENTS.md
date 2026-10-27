@@ -37,3 +37,12 @@ Antes de cambiar las referencias entre proyectos o introducir un patrón arquite
 - Mantén las versiones de paquetes en `Directory.Packages.props`; no agregues versiones inline en los proyectos.
 - Mantén sincronizados los ejemplos de API, comandos de inicio, notas de arquitectura y estado del roadmap.
 - Antes de terminar un cambio, revisa el diff e informa cualquier requisito local de SDK o servicio que haya impedido una validación solicitada.
+
+## Delegación y trabajo en paralelo
+
+- Usa subagentes cuando el trabajo tenga revisiones independientes o módulos que puedan avanzarse en paralelo y la coordinación ahorre tiempo. Para cambios pequeños o dependientes, trabaja en serie.
+- Antes de delegar, divide el objetivo en tareas con alcance, archivos/área, entregable y límites explícitos. Prefiere auditorías de solo lectura para revisiones.
+- Todos los agentes comparten el mismo worktree. Asigna un único agente por archivo compartido; para edición paralela, delimita archivos/módulos distintos y acuerda contratos entre ellos antes de iniciar.
+- No paralelices tareas que dependan del resultado de otra, ni permitas ediciones simultáneas de `AGENTS.md`, archivos de solución/configuración central o el mismo endpoint.
+- Conserva al agente principal como responsable de integrar cambios, resolver contradicciones, revisar el diff y completar la validación final. Trata los reportes de subagentes como hallazgos que deben comprobarse.
+- Mantén la delegación acotada: usa solo los agentes que aporten trabajo independiente y deja capacidad para integración y seguimiento.

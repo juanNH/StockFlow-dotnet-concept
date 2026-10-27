@@ -12,6 +12,7 @@ public sealed class CurrencyRatesController(GetCurrencyRateHandler handler) : Co
     [ProducesResponseType(typeof(CurrencyRateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status502BadGateway)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status504GatewayTimeout)]
     public async Task<ActionResult<CurrencyRateResponse>> GetRate(
         [RegularExpression("^[A-Za-z]{3}$")] string baseCurrency,
         [RegularExpression("^[A-Za-z]{3}$")] string quoteCurrency,

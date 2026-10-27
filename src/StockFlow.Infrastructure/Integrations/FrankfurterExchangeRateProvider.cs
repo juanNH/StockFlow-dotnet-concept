@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using StockFlow.Application.Abstractions;
 using StockFlow.Application.CurrencyRates;
@@ -12,7 +13,15 @@ internal sealed class FrankfurterExchangeRateProvider(HttpClient httpClient) : I
         CancellationToken cancellationToken)
     {
         var path = $"v2/rate/{Uri.EscapeDataString(baseCurrency)}/{Uri.EscapeDataString(quoteCurrency)}";
-        var response = await httpClient.GetFromJsonAsync<FrankfurterRateResponse>(path, cancellationToken);
+        FrankfurterRateResponse? response;
+        try
+        {
+            response = await httpClient.GetFromJsonAsync<FrankfurterRateResponse>(path, cancellationToken);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.UnprocessableEntity)
+        {
+            throw new CurrencyPairNotSupportedException(baseCurrency, quoteCurrency, exception);
+        }
 
         if (response is null)
         {

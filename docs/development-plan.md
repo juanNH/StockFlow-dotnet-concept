@@ -7,7 +7,9 @@
 - Solución Clean Architecture con proyectos Domain, Application, Infrastructure y API.
 - Target .NET 10, versiones centrales de paquetes, Swagger, ProblemDetails, servicios locales en Compose y colección inicial de Postman.
 - Ejemplo de cotización con Frankfurter y Redis; PostgreSQL y Npgsql/EF Core registrados para próximas etapas.
-- **Criterio:** el SDK configurado restaura y compila la solución, PostgreSQL y Redis arrancan, Swagger abre y las dos requests iniciales funcionan desde Postman. Instala .NET 10 para terminar esta verificación y marcar la etapa como completa.
+- **Validado:** restore/build con SDK 10.0.403 sin advertencias; Swagger y `/health/live` responden; cotización USD/EUR devuelve 200; un par de monedas no soportado devuelve 400; la API continúa si Redis no está disponible.
+- **Pendiente:** Docker Desktop devuelve HTTP 500 al consultar su engine Linux, por lo que no fue posible iniciar PostgreSQL/Redis ni verificar cache hit.
+- **Criterio:** PostgreSQL y Redis arrancan, Swagger abre y las requests iniciales funcionan con caché activa. Completa esta etapa al repetir esta parte cuando Docker esté disponible.
 
 ## Etapa 2 — Persistencia y primera migración
 

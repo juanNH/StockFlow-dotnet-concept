@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using StackExchange.Redis;
 using StockFlow.Application.Abstractions;
-using StockFlow.Application.Abstractions;
 using StockFlow.Infrastructure.Caching;
 using StockFlow.Infrastructure.Integrations;
 using StockFlow.Infrastructure.Persistence;
@@ -33,6 +32,8 @@ public static class DependencyInjection
         {
             var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
             redisOptions.AbortOnConnectFail = false;
+            redisOptions.ConnectTimeout = 1_000;
+            redisOptions.AsyncTimeout = 1_000;
             return ConnectionMultiplexer.Connect(redisOptions);
         });
         services.AddScoped<ICacheStore, RedisCacheStore>();

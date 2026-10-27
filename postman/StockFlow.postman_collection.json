@@ -28,6 +28,15 @@
             "header": [],
             "url": "{{baseUrl}}/api/v1/currency-rates/USD/EUR"
           }
+        },
+        {
+          "name": "Unsupported pair returns 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/currency-rates/ABC/XYZ",
+            "description": "Expected response: HTTP 400 ProblemDetails."
+          }
         }
       ]
     }

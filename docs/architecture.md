@@ -46,7 +46,9 @@ El código inicial incluye un flujo vertical pequeño de cotización: Controller
 2. El handler normaliza los códigos y consulta `ICacheStore`.
 3. Ante un cache miss, llama a `IExchangeRateProvider`, implementado por el adaptador HTTP de Frankfurter.
 4. El handler guarda el resultado en Redis durante 12 horas y devuelve un DTO de Application.
-5. `GlobalExceptionHandler` registra la excepción y convierte fallos upstream en un `502 ProblemDetails` seguro.
+5. `GlobalExceptionHandler` devuelve `400` para pares no soportados, `502` ante fallos upstream y `504` ante timeout, sin exponer detalles internos.
+
+La caché de la cotización puede fallar sin bloquear la respuesta: operaciones Redis tienen un límite de un segundo, se registran como warnings y el caso de uso continúa con Frankfurter. La cancelación del cliente sigue propagándose.
 
 ## Decisiones transversales
 

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using StockFlow.Application.CurrencyRates;
 
 namespace StockFlow.Api.ErrorHandling;
 
@@ -10,11 +11,30 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
         Exception exception,
         CancellationToken cancellationToken)
     {
-        var isUpstreamFailure = exception is HttpRequestException;
-        var statusCode = isUpstreamFailure
-            ? StatusCodes.Status502BadGateway
-            : StatusCodes.Status500InternalServerError;
-        var title = isUpstreamFailure ? "Upstream service error" : "An unexpected error occurred";
+        if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        var (statusCode, title, detail) = exception switch
+        {
+            CurrencyPairNotSupportedException => (
+                StatusCodes.Status400BadRequest,
+                "Unsupported currency pair",
+                "The requested currency pair is not supported."),
+            OperationCanceledException => (
+                StatusCodes.Status504GatewayTimeout,
+                "Upstream service timeout",
+                "The currency provider did not respond in time."),
+            HttpRequestException => (
+                StatusCodes.Status502BadGateway,
+                "Upstream service error",
+                "The currency provider could not complete the request."),
+            _ => (
+                StatusCodes.Status500InternalServerError,
+                "An unexpected error occurred",
+                "See the server logs for diagnostic details.")
+        };
 
         logger.LogError(exception, "Request failed with status code {StatusCode}.", statusCode);
 
@@ -22,7 +42,7 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
         await Results.Problem(
             statusCode: statusCode,
             title: title,
-            detail: "See the server logs for diagnostic details.").ExecuteAsync(httpContext);
+            detail: detail).ExecuteAsync(httpContext);
 
         return true;
     }
