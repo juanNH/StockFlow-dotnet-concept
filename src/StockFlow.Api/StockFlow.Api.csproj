@@ -10,6 +10,10 @@
   <ItemGroup>
     <ProjectReference Include="..\StockFlow.Application\StockFlow.Application.csproj" />
     <ProjectReference Include="..\StockFlow.Infrastructure\StockFlow.Infrastructure.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Swashbuckle.AspNetCore" />
   </ItemGroup>
 

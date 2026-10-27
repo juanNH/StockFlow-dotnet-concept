@@ -26,6 +26,18 @@ API sin interfaz para practicar inventario y pedidos con .NET 10, PostgreSQL, Re
 
 Los valores de `appsettings.Development.json` y `compose.yaml` son credenciales locales de ejemplo. Para otros entornos, usa secretos de usuario o variables de entorno y no subas credenciales reales al repositorio.
 
+## Migraciones de base de datos
+
+Con PostgreSQL activo, restaura la herramienta local y genera/aplica migraciones desde la raíz:
+
+```powershell
+dotnet tool restore
+dotnet ef migrations add NombreDeLaMigracion --project src/StockFlow.Infrastructure --startup-project src/StockFlow.Api --context StockFlowDbContext --output-dir Persistence/Migrations
+dotnet ef database update --project src/StockFlow.Infrastructure --startup-project src/StockFlow.Api --context StockFlowDbContext
+```
+
+La factoría de diseño usa `ConnectionStrings__Postgres` si está definida; en local tiene el mismo fallback de desarrollo que Compose. La API no aplica migraciones automáticamente al arrancar.
+
 ## Arquitectura y plan
 
 - [Arquitectura](docs/architecture.md)

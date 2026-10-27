@@ -1,22 +1,23 @@
 # Plan de desarrollo de StockFlow
 
-**Cantidad total: 11 etapas.** Avanza en orden y mantén cada etapa lo bastante pequeña como para revisarla. El esqueleto inicial está implementado; la validación de la etapa 1 queda pendiente porque esta máquina solo tiene el SDK .NET 8 y el repositorio apunta a .NET 10. Completa una etapa cuando sus entregables y criterios estén satisfechos. Actualiza la colección Postman a medida que agregues endpoints.
+**Cantidad total: 11 etapas.** Avanza en orden y mantén cada etapa lo bastante pequeña como para revisarla. El SDK .NET 10.0.403 está instalado localmente en `.dotnet/`; el SDK global de la máquina sigue en .NET 8. Completa cada etapa cuando sus entregables y criterios estén satisfechos. Actualiza la colección Postman a medida que agregues endpoints.
 
-## Etapa 1 — Esqueleto y entorno local ⏳
+## Etapa 1 — Esqueleto y entorno local ✅
 
 - Solución Clean Architecture con proyectos Domain, Application, Infrastructure y API.
 - Target .NET 10, versiones centrales de paquetes, Swagger, ProblemDetails, servicios locales en Compose y colección inicial de Postman.
 - Ejemplo de cotización con Frankfurter y Redis; PostgreSQL y Npgsql/EF Core registrados para próximas etapas.
-- **Validado:** restore/build con SDK 10.0.403 sin advertencias; Swagger y `/health/live` responden; cotización USD/EUR devuelve 200; un par de monedas no soportado devuelve 400; la API continúa si Redis no está disponible.
-- **Pendiente:** Docker Desktop devuelve HTTP 500 al consultar su engine Linux, por lo que no fue posible iniciar PostgreSQL/Redis ni verificar cache hit.
-- **Criterio:** PostgreSQL y Redis arrancan, Swagger abre y las requests iniciales funcionan con caché activa. Completa esta etapa al repetir esta parte cuando Docker esté disponible.
+- **Validado:** restore/build sin advertencias; PostgreSQL y Redis quedan healthy en Compose; Swagger y `/health/live` responden; cotización USD/EUR devuelve 200 y el par no soportado 400.
+- **Caché validada:** la primera request encontró la clave ausente, guardó la cotización en Redis y la segunda respondió desde caché (20 ms).
+- **Criterio cumplido:** los endpoints de la colección Postman responden y los servicios locales arrancan.
 
-## Etapa 2 — Persistencia y primera migración
+## Etapa 2 — Persistencia y primera migración ✅
 
-- Define el primer modelo relacional y las configuraciones del `DbContext`.
-- Incorpora la factoría de diseño/herramientas de EF Core y una migración inicial explícita.
-- Documenta cómo aplicar migraciones en local; no migres al iniciar la API.
-- **Criterio:** una base local vacía se crea desde migraciones y el esquema coincide con el modelo.
+- **Implementado:** entidad de dominio `Organization`, mapping PostgreSQL explícito, `DbSet`, factory de diseño EF Core y migración `InitialCreate` con índice único por `slug`.
+- **Implementado:** guía de migraciones locales y registro central de la herramienta `dotnet-ef`.
+- **Validado:** restore/build sin advertencias; `dotnet-ef` generó la migración y su script SQL contiene la tabla `organizations` y el índice único.
+- **Validado:** `dotnet ef database update` aplicó la migración a una base PostgreSQL vacía; `information_schema`, `pg_indexes` e `__EFMigrationsHistory` confirman columnas, índice único y versión aplicada.
+- **Criterio cumplido:** una base local vacía se crea desde migraciones y el esquema coincide con el modelo.
 
 ## Etapa 3 — Identidad y separación por organización
 

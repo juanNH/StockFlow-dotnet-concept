@@ -29,7 +29,9 @@ flowchart TD
 | `StockFlow.Infrastructure` | DbContext/configuraciones/migraciones EF Core, adaptadores SQL, Redis y clientes externos | Comportamiento de endpoints o políticas de negocio |
 | `StockFlow.Api` | Controladores, validación, ProblemDetails, Swagger, registro de dependencias | Reglas de negocio de pedidos/stock o consultas SQL |
 
-El código inicial incluye un flujo vertical pequeño de cotización: Controller → caso de uso de Application → abstracciones de caché/proveedor → Redis o Frankfurter. PostgreSQL está conectado a través de EF Core y `IDbConnectionFactory`; las tablas y migraciones se incorporan en la etapa de persistencia.
+El código inicial incluye un flujo vertical pequeño de cotización: Controller → caso de uso de Application → abstracciones de caché/proveedor → Redis o Frankfurter. PostgreSQL está conectado a través de EF Core y `IDbConnectionFactory`; `StockFlowDbContextFactory` prepara el contexto para las herramientas de diseño y migración.
+
+La primera entidad persistida es `Organization`, como raíz de tenant para las siguientes etapas. Su tabla `organizations` tiene `id` UUID, `name` (máximo 120), `slug` (máximo 80, único) y `created_at_utc` en `timestamp with time zone`. Domain normaliza/valida el nombre, el slug y el instante UTC; Infrastructure mapea nombres explícitos de tabla/columnas e índice único.
 
 ## Datos y consistencia
 
