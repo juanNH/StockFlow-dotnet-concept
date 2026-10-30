@@ -15,6 +15,8 @@ internal sealed class OrganizationMembershipConfiguration : IEntityTypeConfigura
                 "ck_organization_memberships_role",
                 "role IN ('Owner', 'Admin', 'Member')"));
         builder.HasKey(membership => membership.Id);
+        builder.HasAlternateKey(membership => new { membership.OrganizationId, membership.UserId })
+            .HasName("ak_organization_memberships_organization_user");
         builder.Property(membership => membership.Id).HasColumnName("id");
         builder.Property(membership => membership.UserId).HasColumnName("user_id");
         builder.Property(membership => membership.OrganizationId).HasColumnName("organization_id");

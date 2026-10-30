@@ -170,7 +170,7 @@ internal sealed class EfInventoryRepository(
             WHERE organization_id = @organizationId
               AND warehouse_id = @warehouseId
               AND product_id = @productId
-              AND quantity_on_hand + @quantityDelta >= 0
+              AND quantity_on_hand + @quantityDelta >= quantity_reserved
             RETURNING quantity_on_hand;
             """,
             ("@quantityDelta", DbType.Int64, adjustment.QuantityDelta),

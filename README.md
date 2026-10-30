@@ -99,7 +99,21 @@ Todos los endpoints de depósitos e inventario requieren bearer token. La organi
 
 Cada ajuste usa SQL parametrizado dentro de una transacción PostgreSQL: actualiza el saldo de forma condicional para que no sea negativo e inserta el movimiento en la misma transacción. Si falla la inserción, el saldo se revierte. Un saldo insuficiente responde `409` sin crear un movimiento; los IDs de otra organización responden `404`. Las FK compuestas validan que depósito y producto pertenezcan a la misma organización. El ledger es append-only y un trigger rechaza operaciones manuales `UPDATE`, `DELETE` y `TRUNCATE`.
 
-El ajuste todavía no es idempotente: repetir la misma request puede volver a cambiar el saldo y crear otro movimiento. Las claves de idempotencia se incorporan en la Etapa 7. El inventario no usa Redis ni toma decisiones a partir de datos cacheados.
+El ajuste todavía no es idempotente: repetir la misma request puede volver a cambiar el saldo y crear otro movimiento. La Etapa 7 agrega idempotencia a la creación de pedidos; este endpoint de ajustes sigue sin una clave idempotente. El inventario no usa Redis ni toma decisiones a partir de datos cacheados.
+
+## Pedidos y reservas — Etapa 7 en progreso
+
+El flujo está implementado y queda pendiente completar su validación de aceptación:
+
+- `POST /api/v1/orders` crea un pedido y sus reservas. Requiere `Idempotency-Key` y utiliza la organización del JWT autenticado.
+- `GET /api/v1/orders/{orderId}` consulta un pedido del tenant actual con sus snapshots y estado de reserva.
+- `POST /api/v1/orders/expire-due` libera únicamente reservas vencidas y cambia el estado `Reserved` a `Expired`. El vencimiento está configurado para 2 minutos en la demo.
+
+La clave de idempotencia es obligatoria y única por organización. Se guarda un hash estable del depósito y las líneas normalizadas para reconocer reintentos equivalentes y rechazar el uso de la misma clave con contenido diferente. Las líneas conservan un snapshot de SKU, nombre, precio y moneda. Hasta la Etapa 8, todas las líneas del pedido deben compartir moneda; la conversión se agregará luego.
+
+Un reintento equivalente devuelve la representación original de creación y el header `Idempotency-Replayed: true`; `GET /api/v1/orders/{orderId}` muestra el estado actual del pedido. El esquema también liga el creador a una membresía del tenant y obliga a que depósito y vencimiento de cada reserva coincidan con los del pedido.
+
+La creación reserva stock de forma atómica incrementando `inventory_balances.quantity_reserved`, sin cambiar `quantity_on_hand` ni insertar en `stock_movements`. La expiración libera esas reservas vencidas explícitamente. El outbox y el worker quedan fuera de esta etapa y se incorporarán en la Etapa 9.
 
 ## Arquitectura y plan
 

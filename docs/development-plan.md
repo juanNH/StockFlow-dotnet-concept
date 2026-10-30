@@ -47,7 +47,7 @@
 - **Implementado:** tenant derivado del JWT, con claves foráneas compuestas que exigen que organización, depósito y producto pertenezcan al mismo tenant.
 - **Implementado:** el endpoint de movimientos filtra opcionalmente por producto y pagina mediante `page` y `pageSize`. La API aplica migraciones solo mediante comandos explícitos.
 - **Validado:** build limpio; ajuste `+10` seguido de `-3`; saldo insuficiente responde `409` sin insertar movimiento; un tenant ajeno recibe `404`; dos decrementos concurrentes de `-5` terminan con un `201` y un `409`; dos incrementos concurrentes sobre un saldo inicial vacío terminan con dos respuestas `201` y saldo `10`; un fallo forzado al insertar el ledger revierte el saldo; el trigger rechaza `UPDATE`, `DELETE` y `TRUNCATE` manuales del ledger.
-- **Criterio cumplido:** el saldo no queda negativo y cada ajuste confirmado guarda su movimiento en la misma transacción. Los reintentos aún pueden duplicar un ajuste; la idempotencia pertenece a la Etapa 7. No se agrega caché en esta etapa.
+- **Criterio cumplido:** el saldo no queda negativo y cada ajuste confirmado guarda su movimiento en la misma transacción. Repetir un ajuste aún puede crear otro movimiento; la idempotencia de la Etapa 7 se aplica a pedidos, no a este endpoint. No se agrega caché en esta etapa.
 
 ## Etapa 6 — Redis para lecturas del catálogo ✅
 
@@ -59,12 +59,18 @@
 - **Validado:** las lecturas de inventario no usan caché. Si Redis falla al invalidar luego del commit o el proceso cae entre el commit y la rotación, las entradas siguen vigentes hasta 5 minutos después de su última escritura. Una request que empezó antes del commit puede escribir datos viejos después y reiniciar el TTL, por lo que el período total puede exceder 5 minutos desde el commit si sigue en curso.
 - **Criterio cumplido:** las lecturas usan caché con expiración e invalidación posterior al commit, toleran Redis indisponible y mantienen inventario fuera de la caché.
 
-## Etapa 7 — Pedidos, reservas e idempotencia
+## Etapa 7 — Pedidos, reservas e idempotencia (en progreso)
 
-- Agrega estados de pedido y snapshots de líneas (precio/nombre al momento de compra).
-- Reserva inventario de forma transaccional y expira reservas con transiciones de estado explícitas.
-- Implementa claves de idempotencia para que los reintentos no dupliquen pedidos ni reservas.
-- **Criterio:** requests repetidas devuelven el resultado original y solicitudes concurrentes no venden stock de más.
+- **Alcance definido:** pedidos tenant-scoped con `POST /api/v1/orders` y `GET /api/v1/orders/{orderId}`; requieren organización derivada del JWT. No aceptar `organizationId` del body como autoridad.
+- **Alcance definido:** `Idempotency-Key` es obligatorio y único por organización. Persistir un hash estable calculado sobre el depósito y las líneas normalizadas; reintentos equivalentes deben recuperar el mismo pedido y la misma respuesta, y una misma clave con contenido distinto debe rechazarse.
+- **Alcance definido:** los reintentos equivalentes devuelven la representación de creación original y marcan `Idempotency-Replayed: true`; la consulta por ID muestra el estado actual.
+- **Alcance definido:** guardar snapshot de SKU, nombre, precio y moneda en cada línea. Hasta la Etapa 8, todas las líneas de un pedido deben usar una misma moneda; no convertir monedas en esta etapa.
+- **Alcance definido:** reservar inventario atómicamente incrementando `inventory_balances.quantity_reserved` sin alterar `quantity_on_hand` ni insertar filas en `stock_movements`. La disponibilidad se valida y la reserva se realiza dentro de la operación transaccional del pedido.
+- **Implementado:** el saldo expone `quantity_on_hand`, `quantity_reserved` y `quantity_available`. Los ajustes manuales de inventario no pueden reducir el físico por debajo de la cantidad ya reservada.
+- **Implementado:** las FKs compuestas exigen que el creador pertenezca al tenant y que depósito/vencimiento de la reserva coincidan con el pedido.
+- **Alcance definido:** expiración explícita con `POST /api/v1/orders/expire-due`. Solo libera reservas vencidas y cambia el estado `Reserved` → `Expired`. La duración de reserva es de 2 minutos para la demo.
+- **Fuera de alcance:** outbox y worker quedan para las Etapas 9; no se agregan aquí. La cotización/conversión de moneda queda para la Etapa 8.
+- **Criterio pendiente de validación:** reintentos idempotentes no duplican pedidos ni reservas, las requests concurrentes no exceden el stock y la expiración solo libera reservas vencidas. La etapa permanece en progreso hasta validar estos escenarios.
 
 ## Etapa 8 — Cotizaciones externas y resiliencia
 

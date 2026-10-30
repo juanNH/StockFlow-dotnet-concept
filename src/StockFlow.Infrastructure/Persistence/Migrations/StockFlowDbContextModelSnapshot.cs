@@ -104,6 +104,12 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
                         .HasColumnType("bigint")
                         .HasColumnName("quantity_on_hand");
 
+                    b.Property<long>("QuantityReserved")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("quantity_reserved");
+
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at_utc");
@@ -116,6 +122,8 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
                     b.ToTable("inventory_balances", null, t =>
                         {
                             t.HasCheckConstraint("ck_inventory_balances_quantity", "quantity_on_hand >= 0");
+
+                            t.HasCheckConstraint("ck_inventory_balances_reserved", "quantity_reserved >= 0 AND quantity_reserved <= quantity_on_hand");
                         });
                 });
 
@@ -174,6 +182,223 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_stock_movements_delta", "quantity_delta <> 0");
 
                             t.HasCheckConstraint("ck_stock_movements_quantity_after", "quantity_after >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("StockFlow.Domain.Orders.Order", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<DateTimeOffset?>("ExpiredAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expired_at_utc");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("request_fingerprint");
+
+                    b.Property<DateTimeOffset>("ReservationExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("reservation_expires_at_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(28, 2)
+                        .HasColumnType("numeric(28,2)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_orders");
+
+                    b.HasAlternateKey("OrganizationId", "Id")
+                        .HasName("ak_orders_organization_id_id");
+
+                    b.HasAlternateKey("OrganizationId", "Id", "WarehouseId", "ReservationExpiresAtUtc")
+                        .HasName("ak_orders_organization_order_warehouse_expiration");
+
+                    b.HasIndex("OrganizationId", "CreatedByUserId");
+
+                    b.HasIndex("OrganizationId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_orders_organization_idempotency_key");
+
+                    b.HasIndex("OrganizationId", "WarehouseId");
+
+                    b.HasIndex("OrganizationId", "Status", "ReservationExpiresAtUtc")
+                        .HasDatabaseName("ix_orders_expiration");
+
+                    b.ToTable("orders", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_orders_currency", "currency ~ '^[A-Z]{3}$'");
+
+                            t.HasCheckConstraint("ck_orders_expired_at", "(status = 'Reserved' AND expired_at_utc IS NULL) OR (status = 'Expired' AND expired_at_utc IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_orders_idempotency_key", "idempotency_key ~ '^[A-Za-z0-9._~-]{1,128}$'");
+
+                            t.HasCheckConstraint("ck_orders_request_fingerprint", "request_fingerprint ~ '^[0-9A-F]{64}$'");
+
+                            t.HasCheckConstraint("ck_orders_reservation_window", "reservation_expires_at_utc > created_at_utc");
+
+                            t.HasCheckConstraint("ck_orders_status", "status IN ('Reserved', 'Expired')");
+
+                            t.HasCheckConstraint("ck_orders_total", "total_amount > 0");
+                        });
+                });
+
+            modelBuilder.Entity("StockFlow.Domain.Orders.OrderLine", b =>
+                {
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("currency");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasPrecision(28, 2)
+                        .HasColumnType("numeric(28,2)")
+                        .HasColumnName("line_total");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("product_name");
+
+                    b.Property<string>("ProductSku")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("product_sku");
+
+                    b.Property<long>("Quantity")
+                        .HasColumnType("bigint")
+                        .HasColumnName("quantity");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(20, 4)
+                        .HasColumnType("numeric(20,4)")
+                        .HasColumnName("unit_price");
+
+                    b.HasKey("OrganizationId", "OrderId", "ProductId")
+                        .HasName("pk_order_lines");
+
+                    b.HasIndex("OrganizationId", "ProductId");
+
+                    b.ToTable("order_lines", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_order_lines_currency", "currency ~ '^[A-Z]{3}$'");
+
+                            t.HasCheckConstraint("ck_order_lines_quantity", "quantity BETWEEN 1 AND 1000000");
+
+                            t.HasCheckConstraint("ck_order_lines_total", "line_total > 0");
+
+                            t.HasCheckConstraint("ck_order_lines_total_matches_snapshot", "line_total = unit_price * quantity");
+
+                            t.HasCheckConstraint("ck_order_lines_unit_price", "unit_price > 0");
+
+                            t.HasCheckConstraint("ck_order_lines_unit_price_scale", "unit_price = trunc(unit_price, 2)");
+                        });
+                });
+
+            modelBuilder.Entity("StockFlow.Domain.Orders.StockReservation", b =>
+                {
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("order_id");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<long>("Quantity")
+                        .HasColumnType("bigint")
+                        .HasColumnName("quantity");
+
+                    b.Property<DateTimeOffset?>("ReleasedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("released_at_utc");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("warehouse_id");
+
+                    b.HasKey("OrganizationId", "OrderId", "ProductId")
+                        .HasName("pk_stock_reservations");
+
+                    b.HasIndex("OrganizationId", "WarehouseId", "ProductId");
+
+                    b.HasIndex("OrganizationId", "OrderId", "WarehouseId", "ExpiresAtUtc");
+
+                    b.ToTable("stock_reservations", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_stock_reservations_quantity", "quantity BETWEEN 1 AND 1000000");
+
+                            t.HasCheckConstraint("ck_stock_reservations_released_at", "(status = 'Active' AND released_at_utc IS NULL) OR (status = 'Released' AND released_at_utc IS NOT NULL)");
+
+                            t.HasCheckConstraint("ck_stock_reservations_status", "status IN ('Active', 'Released')");
                         });
                 });
 
@@ -236,7 +461,8 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OrganizationId");
+                    b.HasAlternateKey("OrganizationId", "UserId")
+                        .HasName("ak_organization_memberships_organization_user");
 
                     b.HasIndex("UserId", "OrganizationId")
                         .IsUnique()
@@ -498,6 +724,68 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("StockFlow.Domain.Orders.Order", b =>
+                {
+                    b.HasOne("StockFlow.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StockFlow.Domain.Organizations.OrganizationMembership", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "CreatedByUserId")
+                        .HasPrincipalKey("OrganizationId", "UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StockFlow.Domain.Warehouses.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "WarehouseId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StockFlow.Domain.Orders.OrderLine", b =>
+                {
+                    b.HasOne("StockFlow.Domain.Orders.Order", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("OrganizationId", "OrderId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StockFlow.Domain.Products.Product", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "ProductId")
+                        .HasPrincipalKey("OrganizationId", "Id")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StockFlow.Domain.Orders.StockReservation", b =>
+                {
+                    b.HasOne("StockFlow.Domain.Orders.OrderLine", null)
+                        .WithOne()
+                        .HasForeignKey("StockFlow.Domain.Orders.StockReservation", "OrganizationId", "OrderId", "ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StockFlow.Domain.Inventory.InventoryBalance", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "WarehouseId", "ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StockFlow.Domain.Orders.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId", "OrderId", "WarehouseId", "ExpiresAtUtc")
+                        .HasPrincipalKey("OrganizationId", "Id", "WarehouseId", "ReservationExpiresAtUtc")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("StockFlow.Domain.Organizations.OrganizationMembership", b =>
                 {
                     b.HasOne("StockFlow.Domain.Organizations.Organization", null)
@@ -529,6 +817,11 @@ namespace StockFlow.Infrastructure.Persistence.Migrations
                         .HasForeignKey("OrganizationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("StockFlow.Domain.Orders.Order", b =>
+                {
+                    b.Navigation("Lines");
                 });
 #pragma warning restore 612, 618
         }

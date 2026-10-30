@@ -508,6 +508,193 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Orders",
+      "description": "Authenticated order flow with inventory reservations and idempotency. First create a product, warehouse, and positive stock using the Products and Warehouses and inventory folders. Use the same Idempotency-Key and identical body for the retry. Reservation TTL is two minutes in the demo.",
+      "item": [
+        {
+          "name": "Create order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warehouseId\": \"{{warehouseId}}\",\n  \"lines\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/orders",
+            "description": "Creates an order and reserves two units. A successful response should contain id and status Reserved; the script saves id as orderId. Run the idempotency retry immediately with the same key and body, before the two-minute demo TTL expires."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const order = pm.response.json();",
+                  "  pm.environment.set('orderId', order.id);",
+                  "  pm.test('Order is reserved', function () {",
+                  "    pm.expect(order.status).to.eql('Reserved');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Retry create order (same idempotency key)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warehouseId\": \"{{warehouseId}}\",\n  \"lines\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"quantity\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/v1/orders",
+            "description": "Repeat Create order before the reservation expires. Keep both the Idempotency-Key and request body unchanged; the response should return the same orderId without creating a second reservation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const originalOrderId = pm.environment.get('orderId');",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const retry = pm.response.json();",
+                  "  pm.test('Idempotent retry returns the same orderId', function () {",
+                  "    pm.expect(retry.id).to.eql(originalOrderId);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/orders/{{orderId}}",
+            "description": "Gets the order and its reservation state. Before expiration, the order should have status Reserved. Run this request again after Expire due orders."
+          }
+        },
+        {
+          "name": "Expire due orders",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/orders/expire-due",
+            "description": "Processes only reservations whose two-minute demo TTL has elapsed. Wait until the order's expiresAtUtc before running this request; it leaves unexpired reservations unchanged."
+          }
+        },
+        {
+          "name": "Get order after expiration",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/orders/{{orderId}}",
+            "description": "After Expire due orders processes the elapsed reservation, the order should now have status Expired."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const order = pm.response.json();",
+                  "  pm.test('Order expired', function () {",
+                  "    pm.expect(order.status).to.eql('Expired');",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [

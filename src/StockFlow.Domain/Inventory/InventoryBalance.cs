@@ -14,5 +14,9 @@ public sealed class InventoryBalance
 
     public long QuantityOnHand { get; private set; }
 
+    public long QuantityReserved { get; private set; }
+
+    public long QuantityAvailable => QuantityOnHand - QuantityReserved;
+
     public DateTimeOffset UpdatedAtUtc { get; private set; }
 }

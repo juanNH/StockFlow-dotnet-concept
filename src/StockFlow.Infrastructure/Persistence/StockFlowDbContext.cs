@@ -6,6 +6,7 @@ using StockFlow.Domain.Organizations;
 using StockFlow.Domain.Inventory;
 using StockFlow.Domain.Products;
 using StockFlow.Domain.Warehouses;
+using StockFlow.Domain.Orders;
 
 namespace StockFlow.Infrastructure.Persistence;
 
@@ -28,6 +29,12 @@ public sealed class StockFlowDbContext(
 
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 
+    public DbSet<Order> Orders => Set<Order>();
+
+    public DbSet<OrderLine> OrderLines => Set<OrderLine>();
+
+    public DbSet<StockReservation> StockReservations => Set<StockReservation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -44,5 +51,11 @@ public sealed class StockFlowDbContext(
             .HasQueryFilter(balance => balance.OrganizationId == CurrentOrganizationId);
         modelBuilder.Entity<StockMovement>()
             .HasQueryFilter(movement => movement.OrganizationId == CurrentOrganizationId);
+        modelBuilder.Entity<Order>()
+            .HasQueryFilter(order => order.OrganizationId == CurrentOrganizationId);
+        modelBuilder.Entity<OrderLine>()
+            .HasQueryFilter(line => line.OrganizationId == CurrentOrganizationId);
+        modelBuilder.Entity<StockReservation>()
+            .HasQueryFilter(reservation => reservation.OrganizationId == CurrentOrganizationId);
     }
 }

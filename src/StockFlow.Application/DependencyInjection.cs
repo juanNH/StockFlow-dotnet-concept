@@ -3,6 +3,7 @@ using StockFlow.Application.CurrencyRates;
 using StockFlow.Application.Inventory;
 using StockFlow.Application.Products;
 using StockFlow.Application.Warehouses;
+using StockFlow.Application.Orders;
 
 namespace StockFlow.Application;
 
@@ -23,6 +24,9 @@ public static class DependencyInjection
         services.AddScoped<AdjustStockHandler>();
         services.AddScoped<GetInventoryBalancesHandler>();
         services.AddScoped<GetStockMovementsHandler>();
+        services.AddScoped<CreateOrderHandler>();
+        services.AddScoped<GetOrderHandler>();
+        services.AddScoped<ExpireDueReservationsHandler>();
         return services;
     }
 }

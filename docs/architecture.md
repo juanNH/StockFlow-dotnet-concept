@@ -59,7 +59,15 @@ Los depósitos y saldos son tenant-owned. Las claves foráneas compuestas atan l
 
 `POST /api/v1/warehouses` crea un depósito; `GET /api/v1/warehouses` lista los depósitos visibles para el tenant y `GET /api/v1/warehouses/{warehouseId}` obtiene uno por ID. `POST /api/v1/warehouses/{warehouseId}/inventory/{productId}/adjustments` recibe un delta firmado y un motivo. `GET /api/v1/warehouses/{warehouseId}/inventory` consulta los saldos y `GET /api/v1/warehouses/{warehouseId}/inventory/movements` consulta movimientos, con filtros `productId`, `page` y `pageSize`.
 
-El ajuste ejecuta SQL parametrizado con Npgsql dentro de una transacción explícita. Actualiza el saldo con una condición que rechaza cualquier decremento que lo deje negativo y revisa las filas afectadas; inserta el movimiento en la misma transacción. Si la inserción falla, el saldo también se revierte. Los movimientos son append-only: un trigger de PostgreSQL rechaza operaciones manuales `UPDATE`, `DELETE` y `TRUNCATE`. Los reintentos no son idempotentes todavía y pueden aplicar dos veces un ajuste; esa protección se implementará en la Etapa 7. Redis no participa en lecturas ni escrituras de inventario en esta etapa.
+El ajuste ejecuta SQL parametrizado con Npgsql dentro de una transacción explícita. Actualiza el saldo con una condición que rechaza cualquier decremento que lo deje por debajo del stock reservado y revisa las filas afectadas; inserta el movimiento en la misma transacción. Si la inserción falla, el saldo también se revierte. Los movimientos son append-only: un trigger de PostgreSQL rechaza operaciones manuales `UPDATE`, `DELETE` y `TRUNCATE`. Los reintentos de ajustes siguen sin ser idempotentes; la Etapa 7 agrega idempotencia a la creación de pedidos sin cambiar este endpoint. Redis no participa en lecturas ni escrituras de inventario en esta etapa.
+
+## Pedidos y reservas (Etapa 7 en construcción)
+
+El contrato en implementación es tenant-scoped y obtiene la organización desde el JWT validado. Prevé `POST /api/v1/orders` y `GET /api/v1/orders/{orderId}`. Crear un pedido requiere el header `Idempotency-Key`, único dentro de la organización. El servidor calcula un hash estable del depósito y de las líneas normalizadas: una repetición con la misma clave y contenido devuelve la representación original de creación con `Idempotency-Replayed: true`; reutilizar la clave con contenido diferente se rechaza. GET devuelve el estado actual del pedido.
+
+Cada línea guarda un snapshot de SKU, nombre, precio y moneda para conservar los datos vistos al crear el pedido. Hasta la Etapa 8, todas las líneas deben compartir una moneda y no se realiza conversión.
+
+La reserva se hace atómicamente junto con la creación del pedido. Aumenta `inventory_balances.quantity_reserved`, sin modificar `quantity_on_hand` ni crear movimientos en `stock_movements`. La expiración es explícita mediante `POST /api/v1/orders/expire-due`: solo procesa reservas vencidas, libera sus cantidades reservadas y mueve el estado `Reserved` a `Expired`. Para la demo, el plazo de reserva es de 2 minutos. Las claves foráneas compuestas vinculan el creador a una membresía del tenant y cada reserva al depósito y vencimiento del pedido. No se incluye outbox ni worker en esta etapa; ambos pertenecen a la Etapa 9.
 
 ## Datos y consistencia
 

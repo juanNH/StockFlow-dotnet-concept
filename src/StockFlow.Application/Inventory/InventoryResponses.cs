@@ -6,6 +6,8 @@ public sealed record InventoryBalanceResponse(
     Guid WarehouseId,
     Guid ProductId,
     long QuantityOnHand,
+    long QuantityReserved,
+    long QuantityAvailable,
     DateTimeOffset UpdatedAtUtc)
 {
     public static InventoryBalanceResponse From(InventoryBalance balance)
@@ -14,6 +16,8 @@ public sealed record InventoryBalanceResponse(
             balance.WarehouseId,
             balance.ProductId,
             balance.QuantityOnHand,
+            balance.QuantityReserved,
+            balance.QuantityAvailable,
             balance.UpdatedAtUtc);
     }
 }

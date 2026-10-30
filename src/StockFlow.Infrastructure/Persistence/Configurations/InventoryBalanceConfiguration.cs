@@ -12,7 +12,13 @@ internal sealed class InventoryBalanceConfiguration : IEntityTypeConfiguration<I
     {
         builder.ToTable(
             "inventory_balances",
-            table => table.HasCheckConstraint("ck_inventory_balances_quantity", "quantity_on_hand >= 0"));
+            table =>
+            {
+                table.HasCheckConstraint("ck_inventory_balances_quantity", "quantity_on_hand >= 0");
+                table.HasCheckConstraint(
+                    "ck_inventory_balances_reserved",
+                    "quantity_reserved >= 0 AND quantity_reserved <= quantity_on_hand");
+            });
         builder.HasKey(balance => new { balance.OrganizationId, balance.WarehouseId, balance.ProductId })
             .HasName("pk_inventory_balances");
 
@@ -28,6 +34,11 @@ internal sealed class InventoryBalanceConfiguration : IEntityTypeConfiguration<I
         builder.Property(balance => balance.QuantityOnHand)
             .HasColumnName("quantity_on_hand")
             .IsRequired();
+        builder.Property(balance => balance.QuantityReserved)
+            .HasColumnName("quantity_reserved")
+            .HasDefaultValue(0L)
+            .IsRequired();
+        builder.Ignore(balance => balance.QuantityAvailable);
         builder.Property(balance => balance.UpdatedAtUtc)
             .HasColumnName("updated_at_utc")
             .HasColumnType("timestamp with time zone")

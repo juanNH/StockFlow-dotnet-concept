@@ -9,6 +9,7 @@ using StockFlow.Application.Identity;
 using StockFlow.Application.Inventory;
 using StockFlow.Application.Products;
 using StockFlow.Application.Warehouses;
+using StockFlow.Application.Orders;
 using StockFlow.Infrastructure.Caching;
 using StockFlow.Infrastructure.Integrations;
 using StockFlow.Infrastructure.Identity;
@@ -36,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<IProductRepository, EfProductRepository>();
         services.AddScoped<IWarehouseRepository, EfWarehouseRepository>();
         services.AddScoped<IInventoryRepository, EfInventoryRepository>();
+        services.AddScoped<IOrderRepository, PostgresOrderRepository>();
 
         services.AddOptions<JwtOptions>()
             .Bind(configuration.GetSection(JwtOptions.SectionName))

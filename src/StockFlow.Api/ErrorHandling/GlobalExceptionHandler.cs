@@ -5,9 +5,11 @@ using StockFlow.Application.Identity;
 using StockFlow.Application.Inventory;
 using StockFlow.Application.Products;
 using StockFlow.Application.Warehouses;
+using StockFlow.Application.Orders;
 using StockFlow.Domain.Products;
 using StockFlow.Domain.Inventory;
 using StockFlow.Domain.Warehouses;
+using StockFlow.Domain.Orders;
 
 namespace StockFlow.Api.ErrorHandling;
 
@@ -64,11 +66,51 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
             InsufficientStockException => (
                 StatusCodes.Status409Conflict,
                 "Insufficient stock",
-                "The adjustment would result in a negative stock balance."),
+                "The operation would make available stock negative."),
             StockQuantityOutOfRangeException => (
                 StatusCodes.Status409Conflict,
                 "Stock quantity out of range",
                 "The resulting stock quantity is outside the supported range."),
+            OrderRuleViolationException => (
+                StatusCodes.Status400BadRequest,
+                "Invalid order",
+                exception.Message),
+            OrderCurrencyMismatchException => (
+                StatusCodes.Status400BadRequest,
+                "Order currency mismatch",
+                "All products in an order must use the same currency."),
+            OrderReservationNotDueException => (
+                StatusCodes.Status409Conflict,
+                "Reservation not expired",
+                "The order reservation has not reached its expiration time."),
+            OrderInvalidStateException => (
+                StatusCodes.Status409Conflict,
+                "Invalid order state",
+                "The order cannot make the requested state transition."),
+            OrderNotFoundException => (
+                StatusCodes.Status404NotFound,
+                "Order not found",
+                "The order was not found in the current organization."),
+            OrderIdempotencyConflictException => (
+                StatusCodes.Status409Conflict,
+                "Idempotency key conflict",
+                "This Idempotency-Key was already used with a different order request."),
+            OrderInsufficientStockException => (
+                StatusCodes.Status409Conflict,
+                "Insufficient stock",
+                "There is not enough available stock to reserve every order line."),
+            OrderProductInactiveException => (
+                StatusCodes.Status409Conflict,
+                "Product inactive",
+                "An inactive product cannot be added to an order."),
+            OrderMembershipRequiredException => (
+                StatusCodes.Status403Forbidden,
+                "Organization membership required",
+                "The authenticated user is not a member of the current organization."),
+            OrderStockQuantityOutOfRangeException => (
+                StatusCodes.Status409Conflict,
+                "Reserved stock quantity out of range",
+                "The resulting reserved stock quantity is outside the supported range."),
             CurrencyPairNotSupportedException => (
                 StatusCodes.Status400BadRequest,
                 "Unsupported currency pair",
