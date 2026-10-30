@@ -229,7 +229,7 @@
               ]
             },
             "url": "{{baseUrl}}/api/v1/products?page=1&pageSize=20&search=&sortBy=name&sortDirection=asc&includeInactive=false",
-            "description": "Demonstrates paged product search sorted by name ascending. The response contains items, page, pageSize, totalCount, and totalPages. Replace the empty search query to filter by a term."
+            "description": "Demonstrates paged product search sorted by name ascending. The response contains items, page, pageSize, totalCount, and totalPages. Replace the empty search query to filter by a term. To verify caching, run this exact request twice for the same organization: the first run should log `Product catalog cache miss for product search in organization ...`; the second should log `Product catalog cache hit for product search in organization ...`. Then run Update product and repeat this unchanged search. Check for `Product catalog cache invalidation attempted for organization ...` during the update and a new cache miss on the repeated search; the response should reflect the updated product."
           }
         },
         {

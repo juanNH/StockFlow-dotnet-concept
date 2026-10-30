@@ -18,13 +18,13 @@ public sealed class GetCurrencyRateHandler(
         var normalizedBase = baseCurrency.Trim().ToUpperInvariant();
         var normalizedQuote = quoteCurrency.Trim().ToUpperInvariant();
         var cacheKey = $"currency-rate:v1:{normalizedBase}:{normalizedQuote}";
-        var cached = await cacheStore.GetAsync(cacheKey, cancellationToken);
+        var cacheRead = await cacheStore.GetAsync(cacheKey, cancellationToken);
 
-        if (cached is not null)
+        if (cacheRead.Value is not null)
         {
             try
             {
-                var cachedRate = JsonSerializer.Deserialize<CurrencyRateResponse>(cached, JsonOptions);
+                var cachedRate = JsonSerializer.Deserialize<CurrencyRateResponse>(cacheRead.Value, JsonOptions);
                 if (cachedRate is not null)
                 {
                     return cachedRate;

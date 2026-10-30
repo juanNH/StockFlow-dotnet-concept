@@ -11,26 +11,26 @@ internal sealed class RedisCacheStore(
     private static readonly TimeSpan CacheOperationTimeout = TimeSpan.FromSeconds(1);
     private readonly IDatabase _database = connectionMultiplexer.GetDatabase();
 
-    public async Task<string?> GetAsync(string key, CancellationToken cancellationToken)
+    public async Task<CacheReadResult> GetAsync(string key, CancellationToken cancellationToken)
     {
         try
         {
             var value = await _database.StringGetAsync(key).WaitAsync(CacheOperationTimeout, cancellationToken);
-            return value.HasValue ? value.ToString() : null;
+            return new CacheReadResult(true, value.HasValue ? value.ToString() : null);
         }
         catch (RedisException exception)
         {
             logger.LogWarning(exception, "Redis read failed for cache key {CacheKey}.", key);
-            return null;
+            return CacheReadResult.Unavailable;
         }
         catch (TimeoutException exception)
         {
             logger.LogWarning(exception, "Redis read timed out for cache key {CacheKey}.", key);
-            return null;
+            return CacheReadResult.Unavailable;
         }
     }
 
-    public async Task SetAsync(
+    public async Task<bool> SetAsync(
         string key,
         string value,
         TimeSpan timeToLive,
@@ -38,16 +38,18 @@ internal sealed class RedisCacheStore(
     {
         try
         {
-            await _database.StringSetAsync(key, value, timeToLive)
+            return await _database.StringSetAsync(key, value, timeToLive)
                 .WaitAsync(CacheOperationTimeout, cancellationToken);
         }
         catch (RedisException exception)
         {
             logger.LogWarning(exception, "Redis write failed for cache key {CacheKey}.", key);
+            return false;
         }
         catch (TimeoutException exception)
         {
             logger.LogWarning(exception, "Redis write timed out for cache key {CacheKey}.", key);
+            return false;
         }
     }
 

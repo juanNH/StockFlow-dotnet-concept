@@ -5,6 +5,7 @@ namespace StockFlow.Application.Products;
 
 public sealed class CreateProductHandler(
     IProductRepository products,
+    ProductCatalogCache productCatalogCache,
     ICurrentTenant currentTenant,
     TimeProvider timeProvider)
 {
@@ -12,8 +13,9 @@ public sealed class CreateProductHandler(
         CreateProductCommand command,
         CancellationToken cancellationToken)
     {
+        var organizationId = currentTenant.OrganizationId;
         var product = Product.Create(
-            currentTenant.OrganizationId,
+            organizationId,
             command.Sku,
             command.Name,
             command.Description,
@@ -23,6 +25,7 @@ public sealed class CreateProductHandler(
 
         products.Add(product);
         await products.SaveChangesAsync(cancellationToken);
+        await productCatalogCache.InvalidateOrganizationAsync(organizationId);
         return ProductResponse.From(product);
     }
 }

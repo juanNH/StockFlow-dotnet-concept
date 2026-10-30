@@ -4,6 +4,7 @@ namespace StockFlow.Application.Products;
 
 public sealed class UpdateProductHandler(
     IProductRepository products,
+    ProductCatalogCache productCatalogCache,
     ICurrentTenant currentTenant,
     TimeProvider timeProvider)
 {
@@ -12,7 +13,8 @@ public sealed class UpdateProductHandler(
         UpdateProductCommand command,
         CancellationToken cancellationToken)
     {
-        var product = await products.GetByIdAsync(currentTenant.OrganizationId, productId, cancellationToken)
+        var organizationId = currentTenant.OrganizationId;
+        var product = await products.GetByIdAsync(organizationId, productId, cancellationToken)
             ?? throw new ProductNotFoundException();
 
         product.Update(
@@ -25,6 +27,7 @@ public sealed class UpdateProductHandler(
             timeProvider.GetUtcNow());
 
         await products.SaveChangesAsync(cancellationToken);
+        await productCatalogCache.InvalidateOrganizationAsync(organizationId);
         return ProductResponse.From(product);
     }
 }

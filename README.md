@@ -78,7 +78,11 @@ Todos los endpoints del catálogo requieren `Authorization: Bearer <accessToken>
 | `PUT` | `/api/v1/products/{productId}` | Actualiza SKU, nombre, descripción, precio, moneda y estado activo. |
 | `DELETE` | `/api/v1/products/{productId}` | Desactiva el producto (`is_active = false`); no lo elimina físicamente. |
 
-La búsqueda acepta `page` entre 1 y 1.000.000, `pageSize` entre 1 y 100, `sortBy` entre `name`, `sku`, `unitPrice` y `createdAtUtc`, y `sortDirection` `asc` o `desc`. Por defecto excluye productos inactivos; usa `includeInactive=true` para incluirlos. El SKU es único por organización. Importa la colección y el entorno Postman para tener ejemplos de creación, búsqueda, actualización y desactivación; Swagger describe los contratos y errores esperados. La lectura del catálogo usa PostgreSQL en esta etapa; Redis se integrará en la Etapa 6.
+La búsqueda acepta `page` entre 1 y 1.000.000, `pageSize` entre 1 y 100, `sortBy` entre `name`, `sku`, `unitPrice` y `createdAtUtc`, y `sortDirection` `asc` o `desc`. Por defecto excluye productos inactivos; usa `includeInactive=true` para incluirlos. El SKU es único por organización. Importa la colección y el entorno Postman para tener ejemplos de creación, búsqueda, actualización y desactivación; Swagger describe los contratos y errores esperados.
+
+El detalle del producto se cachea en Redis durante 5 minutos; las búsquedas paginadas, durante 2 minutos. Las claves de catálogo usan la versión `stockflow:catalog:v1` e incluyen tenant y generación. La generación de cada tenant vence a los 30 días; create, update y deactivate la rotan solo después del commit PostgreSQL. Las claves de búsqueda usan SHA-256 de las opciones canónicas de búsqueda, paginación y orden.
+
+PostgreSQL sigue siendo la fuente de verdad. Si Redis falla o expira, el API registra warnings/timeouts y responde desde PostgreSQL; si el GET de generación indica que Redis no está disponible, se evitan las llamadas de caché restantes para esa lectura. Los logs estructurados permiten seguir cache hit/miss y rotaciones de generación. Si falla la invalidación posterior al commit o el proceso se detiene antes de rotar, las entradas pueden seguir vigentes hasta 5 minutos después de su última escritura. Una request que empezó antes del commit puede escribir datos viejos después de ese momento y reiniciar el TTL; por eso, el período total puede exceder 5 minutos desde el commit si esa request sigue en curso. El inventario no se cachea.
 
 ## Depósitos e inventario
 

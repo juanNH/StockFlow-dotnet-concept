@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<SearchProductsHandler>();
         services.AddScoped<UpdateProductHandler>();
         services.AddScoped<DeactivateProductHandler>();
+        services.AddScoped<ProductCatalogCache>();
         services.AddScoped<CreateWarehouseHandler>();
         services.AddScoped<GetWarehouseHandler>();
         services.AddScoped<ListWarehousesHandler>();

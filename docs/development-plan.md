@@ -49,12 +49,15 @@
 - **Validado:** build limpio; ajuste `+10` seguido de `-3`; saldo insuficiente responde `409` sin insertar movimiento; un tenant ajeno recibe `404`; dos decrementos concurrentes de `-5` terminan con un `201` y un `409`; dos incrementos concurrentes sobre un saldo inicial vacío terminan con dos respuestas `201` y saldo `10`; un fallo forzado al insertar el ledger revierte el saldo; el trigger rechaza `UPDATE`, `DELETE` y `TRUNCATE` manuales del ledger.
 - **Criterio cumplido:** el saldo no queda negativo y cada ajuste confirmado guarda su movimiento en la misma transacción. Los reintentos aún pueden duplicar un ajuste; la idempotencia pertenece a la Etapa 7. No se agrega caché en esta etapa.
 
-## Etapa 6 — Redis para lecturas del catálogo
+## Etapa 6 — Redis para lecturas del catálogo ✅
 
-- Cachea consultas y detalles de producto con claves versionadas y TTL documentado.
-- Invalida las claves después de cambios confirmados; permite continuar desde PostgreSQL si Redis falla.
-- Mantén la disponibilidad de stock fuera de las decisiones de pedidos basadas en caché.
-- **Criterio:** Postman o los logs demuestran cache hit, invalidación después de actualizar y comportamiento correcto con Redis desconectado.
+- **Implementado:** cache-aside para detalles de producto con TTL de 5 minutos y búsqueda paginada con TTL de 2 minutos. PostgreSQL sigue siendo la fuente de verdad.
+- **Implementado:** claves de catálogo versionadas bajo `stockflow:catalog:v1`. La generación se mantiene por tenant durante 30 días; las claves de detalle y búsqueda incluyen tenant y generación. Las búsquedas usan SHA-256 de opciones canónicas para producir una clave acotada y estable.
+- **Implementado:** create, update y deactivate rotan la generación después de que `SaveChanges` confirma el cambio en PostgreSQL. Una escritura fallida no invalida la caché.
+- **Implementado:** fallos y timeouts de Redis generan warnings y no bloquean lecturas; se continúa desde PostgreSQL. Si Redis informa que el GET de generación no está disponible, se omiten las demás llamadas de caché para esa lectura.
+- **Validado:** build limpio; cache miss/hit para detalle y búsqueda; invalidación después de update; separación de tenant; lecturas correctas con la API apuntando temporalmente a un puerto Redis cerrado.
+- **Validado:** las lecturas de inventario no usan caché. Si Redis falla al invalidar luego del commit o el proceso cae entre el commit y la rotación, las entradas siguen vigentes hasta 5 minutos después de su última escritura. Una request que empezó antes del commit puede escribir datos viejos después y reiniciar el TTL, por lo que el período total puede exceder 5 minutos desde el commit si sigue en curso.
+- **Criterio cumplido:** las lecturas usan caché con expiración e invalidación posterior al commit, toleran Redis indisponible y mantienen inventario fuera de la caché.
 
 ## Etapa 7 — Pedidos, reservas e idempotencia
 
